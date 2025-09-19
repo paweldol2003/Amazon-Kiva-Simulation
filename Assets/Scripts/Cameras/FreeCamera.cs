@@ -1,5 +1,4 @@
-﻿// Assets/Scripts/Cameras/FreeFlyCamera.cs
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.InputSystem;
 
 public class FreeCamera : MonoBehaviour
@@ -9,6 +8,7 @@ public class FreeCamera : MonoBehaviour
     public float lookSensitivity = 0.15f; // stopnie na piksel
 
     float yaw, pitch;
+    bool frozen = false;
 
     void Start()
     {
@@ -18,11 +18,13 @@ public class FreeCamera : MonoBehaviour
 
     void Update()
     {
+        if (frozen) return; // nic nie rób, jeśli kamera ma freeze
+
         var kb = Keyboard.current;
         var mouse = Mouse.current;
         if (kb == null || mouse == null) return;
 
-        // Mysz: zawsze rozglądanie (cursor lock zrobi CameraSwitcher)
+        // Mysz: rozglądanie
         Vector2 md = mouse.delta.ReadValue();
         yaw += md.x * lookSensitivity;
         pitch -= md.y * lookSensitivity;
@@ -42,5 +44,10 @@ public class FreeCamera : MonoBehaviour
 
         if (move.sqrMagnitude > 1f) move.Normalize();
         transform.position += move * speed * Time.deltaTime;
+    }
+
+    public void SetFrozen(bool state)
+    {
+        frozen = state;
     }
 }

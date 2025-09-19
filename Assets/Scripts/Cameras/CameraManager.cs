@@ -1,4 +1,3 @@
-// Assets/Scripts/Cameras/CameraSwitcher.cs
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -7,10 +6,17 @@ public class CameraManager : MonoBehaviour
     public Camera freeCamera;
     public Camera topCamera;
     public bool startWithFree = true;
-    public Key toggleKey = Key.E;
 
+    [Header("Keybinds")]
+    public Key cameraToggleKey = Key.E;
+    public Key cursorToggleKey = Key.Tab;
 
     FreeCamera freeCtrl;
+    bool cursorEnabled = false;
+    public void Init(GameManager gm)
+    {
+        // Na razie puste, ale zostawiamy dla spójnoœci
+    }
 
     void Awake()
     {
@@ -23,8 +29,15 @@ public class CameraManager : MonoBehaviour
     void Update()
     {
         var kb = Keyboard.current;
-        if (kb != null && kb[toggleKey].wasPressedThisFrame)
+        if (kb == null) return;
+
+        // Prze³¹czanie kamer
+        if (kb[cameraToggleKey].wasPressedThisFrame)
             SetActive(topCamera.enabled ? freeCamera : topCamera);
+
+        // Toggle kursora
+        if (kb[cursorToggleKey].wasPressedThisFrame)
+            ToggleCursor();
     }
 
     void SetActive(Camera active)
@@ -38,22 +51,47 @@ public class CameraManager : MonoBehaviour
         // Sterownik free-cam tylko gdy free
         if (freeCtrl) freeCtrl.enabled = useFree;
 
-        // Jeden AudioListener
+        // AudioListener
         var alFree = freeCamera.GetComponent<AudioListener>();
         var alOver = topCamera.GetComponent<AudioListener>();
         if (alFree) alFree.enabled = useFree;
         if (alOver) alOver.enabled = !useFree;
 
-        // Cursor modes
-        if (useFree)
+        // Reset kursora przy zmianie kamery
+        if (useFree && !cursorEnabled)
         {
-            Cursor.lockState = CursorLockMode.Locked; // kursor ukryty i zablokowany
+            Cursor.lockState = CursorLockMode.Locked;
             Cursor.visible = false;
         }
         else
         {
-            Cursor.lockState = CursorLockMode.None;   // kursor widoczny i odblokowany
+            Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
         }
     }
+    public Camera GetActiveCamera()
+    {
+        return freeCamera.enabled ? freeCamera : topCamera;
+    }
+
+
+
+    void ToggleCursor()
+    {
+        cursorEnabled = !cursorEnabled;
+
+        if (cursorEnabled)
+        {
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
+            if (freeCtrl) freeCtrl.SetFrozen(true);
+        }
+        else
+        {
+            Cursor.lockState = CursorLockMode.Locked;
+            Cursor.visible = false;
+            if (freeCtrl) freeCtrl.SetFrozen(false);
+        }
+    }
+
 }
