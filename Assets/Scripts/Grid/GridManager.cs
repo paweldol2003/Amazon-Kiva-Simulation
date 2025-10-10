@@ -12,7 +12,7 @@ public class GridManager : MonoBehaviour
 
     [Header("Wygl¹d")]
     public Material tileMaterial; // np. URP/Unlit lub Standard
-    public Color defaultColor = new Color(0.18f, 0.18f, 0.18f, 1f);
+    //public Color defaultColor = new Color(0.18f, 0.18f, 0.18f, 1f);
 
     public Tile[,] tiles;
     private MeshRenderer[,] renderers;
