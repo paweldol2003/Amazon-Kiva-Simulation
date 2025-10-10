@@ -28,7 +28,7 @@ public class GridManager : MonoBehaviour
             for (int x = 0; x < width; x++)
             {
                 tiles[x, y] = new Tile(x, y, width);
-                tiles[x, y].color = defaultColor;
+                //tiles[x, y].color = defaultColor;
 
                 var quad = GameObject.CreatePrimitive(PrimitiveType.Quad);
                 quad.name = $"Tile_{x}_{y}";
