@@ -20,8 +20,6 @@ public class Tile
     {
         this.x = x; this.y = y;
         index1D = y * width + x;
-        color = new Color32((byte)UnityEngine.Random.Range(32, 255),
-                             (byte)UnityEngine.Random.Range(32, 255),
-                             (byte)UnityEngine.Random.Range(32, 255), 255);
+        color = new Color32(255, 255, 255, 255);
     }
 }

@@ -5,9 +5,12 @@ public class SelectionManager : MonoBehaviour
 {
     private GameManager gm;
     public LayerMask selectableMask; // przypisz w Inspectorze np. "Robot"
+                                     // Przyk³ad wewn¹trz SelectionManager
 
-    public void Init(GameManager manager) => gm = manager;
-
+    public void Init(GameManager gm)
+    {
+        // Na razie puste, ale zostawiamy dla spójnoœci
+    }
     void Update()
     {
         if (Mouse.current.rightButton.wasPressedThisFrame)

@@ -1,9 +1,9 @@
-// Assets/Scripts/Cameras/StaticOverheadCamera.cs
+// Assets/Scripts/Cameras/TopCamera.cs
 using UnityEngine;
 
 public class TopCamera : MonoBehaviour
 {
-    public GridModel grid;       // auto-kadr na siatkê
+    public GridManager grid;       // auto-kadr na siatkê
     public float padding = 0.1f; // 10% marginesu wokó³ siatki
     public float yOffset = 10f;
 
@@ -14,12 +14,12 @@ public class TopCamera : MonoBehaviour
 
         if (grid != null)
         {
-            float w = grid.cfg.width * grid.cfg.cellSize;
-            float h = grid.cfg.length * grid.cfg.cellSize;
+            float w = grid.width * grid.cellSize;
+            float h = grid.length * grid.cellSize;
             Vector3 center = new(
-                grid.cfg.origin.x + w * 0.5f,
+                grid.origin.x + w * 0.5f,
                 yOffset,
-                grid.cfg.origin.y + h * 0.5f
+                grid.origin.y + h * 0.5f
 
             );
 

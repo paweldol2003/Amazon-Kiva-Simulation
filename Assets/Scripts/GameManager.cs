@@ -8,6 +8,7 @@ public class GameManager : MonoBehaviour
     public CameraManager cameraManager;
     public SelectionManager selectionManager;
     public RobotManager robotManager;
+    public GridManager gridManager;
 
     void Awake()
     {
@@ -22,6 +23,7 @@ public class GameManager : MonoBehaviour
         if (cameraManager != null) cameraManager.Init(this);
         if (selectionManager != null) selectionManager.Init(this);
         if (robotManager != null) robotManager.Init(this);
+        if (gridManager != null) gridManager.Init(this);
 
         Debug.Log("[GameManager] Initialized");
     }
