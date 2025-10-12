@@ -14,20 +14,20 @@ public class GridManager : MonoBehaviour
     public Material tileMaterial; // np. URP/Unlit lub Standard
     //public Color defaultColor = new Color(0.18f, 0.18f, 0.18f, 1f);
 
-    public Tile[,] tiles;
+    public Tile[,] grid;
     private MeshRenderer[,] renderers;
 
     public void Init(GameManager gm) => this.gm = gm;
 
     void Start()
     {
-        tiles = new Tile[width, length];
+        grid = new Tile[width, length];
         renderers = new MeshRenderer[width, length];
 
         for (int y = 0; y < length; y++)
             for (int x = 0; x < width; x++)
             {
-                tiles[x, y] = new Tile(x, y, width);
+                grid[x, y] = new Tile(x, y, width);
                 //tiles[x, y].color = defaultColor;
 
                 var quad = GameObject.CreatePrimitive(PrimitiveType.Quad);
@@ -43,7 +43,7 @@ public class GridManager : MonoBehaviour
                 
                 var mr = quad.GetComponent<MeshRenderer>();
                 mr.sharedMaterial = new Material(tileMaterial ?? new Material(Shader.Find("Unlit/Color")));
-                mr.sharedMaterial.color = tiles[x, y].color;
+                mr.sharedMaterial.color = grid[x, y].color;
                 renderers[x, y] = mr;
             }
     }
@@ -52,21 +52,21 @@ public class GridManager : MonoBehaviour
     public void SetTileColor(int x, int y, Color color)
     {
         if (!InBounds(x, y)) return;
-        tiles[x, y].color = color;
+        grid[x, y].color = color;
         renderers[x, y].sharedMaterial.color = color;
     }
 
     public void RefreshCell(int x, int y)
     {
         if (!InBounds(x, y)) return;
-        renderers[x, y].sharedMaterial.color = tiles[x, y].color;
+        renderers[x, y].sharedMaterial.color = grid[x, y].color;
     }
 
     public void RefreshAll()
     {
         for (int y = 0; y < length; y++)
             for (int x = 0; x < width; x++)
-                renderers[x, y].sharedMaterial.color = tiles[x, y].color;
+                renderers[x, y].sharedMaterial.color = grid[x, y].color;
     }
 
     // --- Pomocnicze --------------------------------------------------
