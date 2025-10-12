@@ -19,7 +19,7 @@ public class GridManager : MonoBehaviour
 
     public void Init(GameManager gm) => this.gm = gm;
 
-    void Start()
+    void Awake()
     {
         grid = new Tile[width, length];
         renderers = new MeshRenderer[width, length];
