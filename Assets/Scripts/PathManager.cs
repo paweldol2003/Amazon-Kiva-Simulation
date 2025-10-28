@@ -15,10 +15,6 @@ public class PathManager : MonoBehaviour
     [Header("Controls")]
     public Key nextIterationKey = Key.Space;
 
-    [Header("Costs")]
-    public float forwardBaseCost = 1f;        // bazowy koszt Forward (dojdzie koszt kafelka)
-    public float turnCost = 1f;               // koszt skrêtu w miejscu
-    public float waitCost = 0.5f;             // koszt czekania
     public bool blockForwardIfNotWalkable = true;
 
     [Header("ACO")]
@@ -150,10 +146,8 @@ public class PathManager : MonoBehaviour
     {
         int w = grid.GetLength(0), h = grid.GetLength(1);
         var path = new List<Node>(64) { start };
-        var visited = new HashSet<Node> { start };
 
         Node cur = start;
-        float len = 0f;
 
         for (int s = 0; s < maxSteps; s++)
         {
@@ -167,22 +161,19 @@ public class PathManager : MonoBehaviour
 
             var weights = new float[actions.Count];
             var nexts = new Node[actions.Count];
-            var costs = new float[actions.Count];
 
             for (int i = 0; i < actions.Count; i++)
             {
                 var a = actions[i];
-                var (nxt, stepCost, allowed) = Apply(cur, a);
+                var (nxt, allowed) = Apply(cur, a);
                 if (!allowed) { weights[i] = 0f; continue; }
-
-                if (visited.Contains(nxt)) stepCost += 0.25f; // delikatna kara za pêtle
 
                 float tau_ = Mathf.Max(1e-6f, tau[si, (int)a]);
                 float eta = HeuristicDesirability(cur, nxt, goal); // >0
                 float wgt = Mathf.Pow(tau_, alpha) * Mathf.Pow(eta, beta);
                 //Debug.Log($"Step: {s}, Action: {a}, Tau = {tau_}, eta = {eta}, wgt = {wgt}");
 
-                weights[i] = wgt; nexts[i] = nxt; costs[i] = stepCost; sum += wgt;
+                weights[i] = wgt; nexts[i] = nxt; sum += wgt;
             }
 
             if (sum <= 0f)
@@ -191,10 +182,10 @@ public class PathManager : MonoBehaviour
                 bool moved = false;
                 for (int i = 0; i < actions.Count; i++)
                 {
-                    var (nxt, cst, ok) = Apply(cur, actions[i]);
+                    var (nxt, ok) = Apply(cur, actions[i]);
                     if (ok)
                     {
-                        cur = nxt; len += cst; path.Add(cur); visited.Add(cur);
+                        cur = nxt; path.Add(cur);
                         moved = true; break;
                     }
                 }
@@ -210,7 +201,7 @@ public class PathManager : MonoBehaviour
                     acc += weights[i];
                     if (r <= acc) { chosen = i; break; }
                 }
-                cur = nexts[chosen]; len += costs[chosen]; path.Add(cur); visited.Add(cur);
+                cur = nexts[chosen]; path.Add(cur);
                 //Debug.Log($"Node = {cur.x}, {cur.y}, {cur.head}");
             }
         }
@@ -227,29 +218,29 @@ public class PathManager : MonoBehaviour
         };
     }
 
-    (Node next, float cost, bool allowed) Apply(Node s, RobotAction a)
+    (Node next, bool allowed) Apply(Node s, RobotAction a)
     {
         switch (a)
         {
             case RobotAction.TurnLeft:
-                return (new Node(s.x, s.y, TurnLeft(s.head)), turnCost, true);
+                return (new Node(s.x, s.y, TurnLeft(s.head)), true);
 
             case RobotAction.TurnRight:
-                return (new Node(s.x, s.y, TurnRight(s.head)), turnCost, true);
+                return (new Node(s.x, s.y, TurnRight(s.head)), true);
 
             case RobotAction.Wait:
-                return (new Node(s.x, s.y, s.head), waitCost, true);
+                return (new Node(s.x, s.y, s.head), true);
 
             case RobotAction.Forward:
                 var (nx, ny) = ForwardPos(s.x, s.y, s.head);
 
                 if (!InsideGrid(nx, ny) || (blockForwardIfNotWalkable && !grid[nx, ny].Walkable))
-                    return (s, 0f, false);
+                    return (s, false);
 
                 float tileCost = Mathf.Max(1, grid[nx, ny].cost);
-                return (new Node(nx, ny, s.head), forwardBaseCost + tileCost, true);
+                return (new Node(nx, ny, s.head), true);
         }
-        return (s, 0f, false);
+        return (s, false);
     }
 
     Heading TurnLeft(Heading h) => (Heading)(((int)h + 3) & 3);
