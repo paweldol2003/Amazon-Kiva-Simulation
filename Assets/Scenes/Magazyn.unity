@@ -811,13 +811,13 @@ MonoBehaviour:
   waitCost: 2
   blockForwardIfNotWalkable: 1
   ants: 40
-  iterations: 20
-  alpha: 1
-  beta: 3
-  evaporation: 0.5
+  iterations: 40
+  alpha: 0.1
+  beta: 5
+  evaporation: 0.75
   Q: 100
   tau0: 0.1
-  maxStepsFactor: 4
+  maxStepsFactor: 1
 --- !u!1 &1506708467
 GameObject:
   m_ObjectHideFlags: 0

@@ -88,11 +88,12 @@ public class PathManager : MonoBehaviour
             for (int a = 0; a < A; a++)
                 tau[s, a] = tau0;
 
-        List<Node> shortestPath = null;
+        //List<Node> shortestPath = null;
         List<Node> bestPath = null;
-        float bestLen = float.PositiveInfinity;
+        //float bestLen = float.PositiveInfinity;
         int maxSteps = Mathf.Max(32, maxStepsFactor * w * h);
 
+        //CA£A ITERACJA
         for (int it = 0; it < iterations; it++)
         {
             // 1) Parowanie
@@ -103,7 +104,7 @@ public class PathManager : MonoBehaviour
             // 2) Mrówki
             for (int k = 0; k < ants; k++)
             {
-                var nodes = ConstructAntPath( new Node( start.x, start.y, startHead), (goal.x, goal.y), tau, maxSteps);
+                var nodes = ConstructAntPath( new Node( start.x, start.y, startHead), (goal.x, goal.y), tau, maxSteps, startStep);
 
                 if (nodes != null && (bestPath == null || nodes.Count < bestPath.Count )) bestPath = nodes;
             }
@@ -129,8 +130,8 @@ public class PathManager : MonoBehaviour
             ColorByPheromones_R(tau, w, h);
 
             // podbij start/goal
-            grid[start.x, start.y].color = new Color32(255, 64, 64, 255);
-            grid[goal.x, goal.y].color = new Color32(255, 64, 64, 255);
+            grid[start.x, start.y].color = new Color32(200, 200, 200, 255);
+            grid[goal.x, goal.y].color = new Color32(100, 100, 100, 255);
 
             gm.gridManager.RefreshAll();
 
@@ -145,7 +146,7 @@ public class PathManager : MonoBehaviour
     }
 
     // ======= Pojedyncza mrówka =======
-    List<Node> ConstructAntPath(Node start, (int gx, int gy) goal, float[,] tau, int maxSteps)
+    List<Node> ConstructAntPath(Node start, (int gx, int gy) goal, float[,] tau, int maxSteps, int startStep)
     {
         int w = grid.GetLength(0), h = grid.GetLength(1);
         var path = new List<Node>(64) { start };
@@ -177,8 +178,9 @@ public class PathManager : MonoBehaviour
                 if (visited.Contains(nxt)) stepCost += 0.25f; // delikatna kara za pêtle
 
                 float tau_ = Mathf.Max(1e-6f, tau[si, (int)a]);
-                float eta = HeuristicDesirability(nxt, goal); // >0
+                float eta = HeuristicDesirability(cur, nxt, goal); // >0
                 float wgt = Mathf.Pow(tau_, alpha) * Mathf.Pow(eta, beta);
+                //Debug.Log($"Step: {s}, Action: {a}, Tau = {tau_}, eta = {eta}, wgt = {wgt}");
 
                 weights[i] = wgt; nexts[i] = nxt; costs[i] = stepCost; sum += wgt;
             }
@@ -209,6 +211,7 @@ public class PathManager : MonoBehaviour
                     if (r <= acc) { chosen = i; break; }
                 }
                 cur = nexts[chosen]; len += costs[chosen]; path.Add(cur); visited.Add(cur);
+                //Debug.Log($"Node = {cur.x}, {cur.y}, {cur.head}");
             }
         }
 
@@ -239,8 +242,10 @@ public class PathManager : MonoBehaviour
 
             case RobotAction.Forward:
                 var (nx, ny) = ForwardPos(s.x, s.y, s.head);
-                if (!Inside(nx, ny) || (blockForwardIfNotWalkable && !grid[nx, ny].Walkable))
+
+                if (!InsideGrid(nx, ny) || (blockForwardIfNotWalkable && !grid[nx, ny].Walkable))
                     return (s, 0f, false);
+
                 float tileCost = Mathf.Max(1, grid[nx, ny].cost);
                 return (new Node(nx, ny, s.head), forwardBaseCost + tileCost, true);
         }
@@ -262,17 +267,18 @@ public class PathManager : MonoBehaviour
         return (x, y);
     }
 
-    bool Inside(int x, int y)
+    bool InsideGrid(int x, int y)
     {
         int w = grid.GetLength(0), h = grid.GetLength(1);
         return x >= 0 && y >= 0 && x < w && y < h;
     }
 
     // ======= Heurystyka / indeksy / pomocnicze =======
-    float HeuristicDesirability(Node n, (int gx, int gy) goal)
+    float HeuristicDesirability(Node c, Node n, (int gx, int gy) goal)
     {
         // im bli¿ej celu tym lepiej, delikatna premia za „patrzenie” w kierunku celu
-        float manhattan = Mathf.Abs(n.x - goal.gx) + Mathf.Abs(n.y - goal.gy);
+        float curManhattan = Mathf.Abs(c.x - goal.gx) + Mathf.Abs(c.y - goal.gy);
+        float nexManhattan = Mathf.Abs(n.x - goal.gx) + Mathf.Abs(n.y - goal.gy);
         float facing = 1f;
 
         int dx = goal.gx - n.x, dy = goal.gy - n.y;
@@ -280,8 +286,7 @@ public class PathManager : MonoBehaviour
             facing = (n.head == Heading.East && dx > 0) || (n.head == Heading.West && dx < 0) ? 1.25f : 1f;
         else if (Mathf.Abs(dy) > 0)
             facing = (n.head == Heading.North && dy > 0) || (n.head == Heading.South && dy < 0) ? 1.25f : 1f;
-
-        return facing / (manhattan + 2f);
+        return curManhattan - nexManhattan + 1 + facing / ((nexManhattan + 2f)*2);
     }
 
     int StateIndex(int x, int y, Heading h, int w, int hgt)
