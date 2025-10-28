@@ -807,17 +807,17 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   nextIterationKey: 1
   forwardBaseCost: 1
-  turnCost: 3
+  turnCost: 1
   waitCost: 2
   blockForwardIfNotWalkable: 1
   ants: 40
-  iterations: 60
+  iterations: 20
   alpha: 1
   beta: 3
   evaporation: 0.5
   Q: 100
   tau0: 0.1
-  maxStepsFactor: 1
+  maxStepsFactor: 4
 --- !u!1 &1506708467
 GameObject:
   m_ObjectHideFlags: 0
@@ -955,6 +955,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   modeSwitch: 27
   randomPath: 20
+  nextStep: 62
+  currentStep: 0
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

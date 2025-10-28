@@ -9,8 +9,10 @@ public class AutomationManager : MonoBehaviour
     [Header("Keybinds")]
     public Key modeSwitch = Key.M;
     public Key randomPath = Key.F;
+    public Key nextStep = Key.RightArrow;
 
-    
+    public int currentStep = 0;
+
     void Start()
     {
         
@@ -23,7 +25,14 @@ public class AutomationManager : MonoBehaviour
         if (kb == null) return;
 
         if (kb[randomPath].wasPressedThisFrame)
-            gm.pathManager.SetRandomPath();
+            gm.pathManager.SetRandomPath(currentStep);
+
+        if (kb[nextStep].wasPressedThisFrame) 
+        {
+            //gm.pathManager.ExecuteStep(currentStep);
+            Debug.Log("[AutomationManager] Executed step: " + (currentStep));
+            currentStep++;
+        }
     }
 
 

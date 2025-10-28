@@ -8,7 +8,7 @@ public class PathManager : MonoBehaviour
 {
     private GameManager gm;
     private Tile[,] grid;
-
+    private (int, Tile[,]) RTgrid; //Real time grid
     public enum Heading { North = 0, East = 1, South = 2, West = 3 }
     public enum RobotAction { Forward = 0, TurnLeft = 1, TurnRight = 2, Wait = 3 }
 
@@ -34,10 +34,14 @@ public class PathManager : MonoBehaviour
     Coroutine acoRoutine;
 
     public void Init(GameManager gm) => this.gm = gm;
-    void Start() => grid = gm.gridManager.grid;
+    void Start()
+    {
+        grid = gm.gridManager.grid;
+        RTgrid = (gm.automationManager.currentStep, gm.gridManager.grid);
+    }
 
     // --- Public trigger (losowy start/koniec, startuje tryb iteracyjny na klawisz) ---
-    public void SetRandomPath()
+    public void SetRandomPath(int startStep)
     {
         if (grid == null) { Debug.LogError("Grid not initialized!"); return; }
 
@@ -57,7 +61,7 @@ public class PathManager : MonoBehaviour
         gm.gridManager.RefreshAll();
 
         if (acoRoutine != null) StopCoroutine(acoRoutine);
-        acoRoutine = StartCoroutine(ACO_Interactive(startTile, endTile, startHead));
+        acoRoutine = StartCoroutine(ACO_Interactive(startTile, endTile, startHead, startStep));
     }
 
     // ======= MODEL STANU =======
@@ -72,7 +76,7 @@ public class PathManager : MonoBehaviour
     }
 
     // ======= ACO: tryb interaktywny (iteracja -> kolorowanie -> czekanie na klawisz) =======
-    IEnumerator ACO_Interactive(Tile start, Tile goal, Heading startHead)
+    IEnumerator ACO_Interactive(Tile start, Tile goal, Heading startHead, int startStep)
     {
         int w = grid.GetLength(0), h = grid.GetLength(1);
         int S = w * h * 4; // stany (x,y,heading)
@@ -84,6 +88,7 @@ public class PathManager : MonoBehaviour
             for (int a = 0; a < A; a++)
                 tau[s, a] = tau0;
 
+        List<Node> shortestPath = null;
         List<Node> bestPath = null;
         float bestLen = float.PositiveInfinity;
         int maxSteps = Mathf.Max(32, maxStepsFactor * w * h);
@@ -98,23 +103,15 @@ public class PathManager : MonoBehaviour
             // 2) Mrówki
             for (int k = 0; k < ants; k++)
             {
-                var (nodes, totalLen) = ConstructAntPath(
-                    new Node(start.x, start.y, startHead),
-                    (goal.x, goal.y),
-                    tau, maxSteps
-                );
+                var nodes = ConstructAntPath( new Node( start.x, start.y, startHead), (goal.x, goal.y), tau, maxSteps);
 
-                if (nodes != null && totalLen < bestLen)
-                {
-                    bestLen = totalLen;
-                    bestPath = nodes;
-                }
+                if (nodes != null && (bestPath == null || nodes.Count < bestPath.Count )) bestPath = nodes;
             }
 
             // 3) Globalna depozycja na best-so-far
             if (bestPath != null && bestPath.Count > 1)
             {
-                float deposit = Q / Mathf.Max(1f, bestLen);
+                float deposit = Q / Mathf.Max(1f, bestPath.Count);
                 for (int i = 0; i < bestPath.Count - 1; i++)
                 {
                     var from = bestPath[i];
@@ -144,12 +141,11 @@ public class PathManager : MonoBehaviour
                 return kb != null;//&& kb[nextIterationKey].wasPressedThisFrame;
             });
         }
-
         acoRoutine = null;
     }
 
     // ======= Pojedyncza mrówka =======
-    (List<Node>, float) ConstructAntPath(Node start, (int gx, int gy) goal, float[,] tau, int maxSteps)
+    List<Node> ConstructAntPath(Node start, (int gx, int gy) goal, float[,] tau, int maxSteps)
     {
         int w = grid.GetLength(0), h = grid.GetLength(1);
         var path = new List<Node>(64) { start };
@@ -160,10 +156,10 @@ public class PathManager : MonoBehaviour
 
         for (int s = 0; s < maxSteps; s++)
         {
-            if (cur.x == goal.gx && cur.y == goal.gy) return (path, len);
+            if (cur.x == goal.gx && cur.y == goal.gy) return (path);
 
             var actions = AvailableActions(cur);
-            if (actions.Count == 0) return (null, float.PositiveInfinity);
+            if (actions.Count == 0) return (null);
 
             int si = StateIndex(cur.x, cur.y, cur.head, w, h);
             float sum = 0f;
@@ -200,7 +196,7 @@ public class PathManager : MonoBehaviour
                         moved = true; break;
                     }
                 }
-                if (!moved) return (null, float.PositiveInfinity);
+                if (!moved) return (null);
             }
             else
             {
@@ -216,7 +212,7 @@ public class PathManager : MonoBehaviour
             }
         }
 
-        return (null, float.PositiveInfinity);
+        return (null);
     }
 
     // ======= Akcje / przejœcia =======
