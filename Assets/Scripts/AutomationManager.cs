@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -12,10 +13,11 @@ public class AutomationManager : MonoBehaviour
     public Key nextStep = Key.RightArrow;
 
     public int currentStep = 0;
+    private List<Tile[,]> RTgrid; //Real time grid
 
     void Start()
     {
-        
+        RTgrid = gm.gridManager.RTgrid;
     }
 
     // Update is called once per frame
@@ -30,8 +32,12 @@ public class AutomationManager : MonoBehaviour
         if (kb[nextStep].wasPressedThisFrame) 
         {
             //gm.pathManager.ExecuteStep(currentStep);
-            Debug.Log("[AutomationManager] Executed step: " + (currentStep));
             currentStep++;
+            gm.gridManager.UpdateRTgrid(currentStep);
+
+            Debug.Log("[AutomationManager] Aktualny step: " + (currentStep));
+            Debug.Log($"Iloœæ gridów:  {RTgrid.Count}");
+
         }
     }
 

@@ -1,4 +1,6 @@
+using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Rendering;
 
 public class GridManager : MonoBehaviour
 {
@@ -15,6 +17,8 @@ public class GridManager : MonoBehaviour
     //public Color defaultColor = new Color(0.18f, 0.18f, 0.18f, 1f);
 
     public Tile[,] grid;
+    public List<Tile[,]> RTgrid; //Real time grid
+
     private MeshRenderer[,] renderers;
 
     public void Init(GameManager gm) => this.gm = gm;
@@ -46,6 +50,12 @@ public class GridManager : MonoBehaviour
                 mr.sharedMaterial.color = grid[x, y].color;
                 renderers[x, y] = mr;
             }
+
+        //Debug.Log($"ilo�� grid�w = {RTgrid.Count}");
+
+        RTgrid = new List<Tile[,]>();
+        RTgrid.Add(grid);
+        Debug.Log($"ilo�� grid�w = {RTgrid.Count}");
     }
 
 
@@ -87,5 +97,19 @@ public class GridManager : MonoBehaviour
             0f,
             origin.y + (y + 0.5f) * cellSize
         );
+    }
+
+    public void UpdateRTgrid(int Step, Tile[,] Grid = null)
+    {
+        if (Grid == null && Step < RTgrid.Count)
+            return;                         // kolejny krok, nic si� nie zmieni�o
+        if (Grid == null)
+            RTgrid.Add(RTgrid[Step-1]);     // dodaj kopi� poprzedniego kroku
+        else if (Step == RTgrid.Count)
+            RTgrid.Add(Grid);               // dodaj nowy krok
+        else if  (Step < RTgrid.Count)
+            RTgrid[Step] = Grid;           // nadpisz istniej�cy krok
+        else
+            Debug.LogError("[GridManager] Nie mo�na doda� kroku do RTgrid - nieci�g�o�� krok�w.");
     }
 }

@@ -8,7 +8,7 @@ public class PathManager : MonoBehaviour
 {
     private GameManager gm;
     private Tile[,] grid;
-    private (int, Tile[,]) RTgrid; //Real time grid
+    private List<Tile[,]> RTgrid; //Real time grid
     public enum Heading { North = 0, East = 1, South = 2, West = 3 }
     public enum RobotAction { Forward = 0, TurnLeft = 1, TurnRight = 2, Wait = 3 }
 
@@ -33,7 +33,7 @@ public class PathManager : MonoBehaviour
     void Start()
     {
         grid = gm.gridManager.grid;
-        RTgrid = (gm.automationManager.currentStep, gm.gridManager.grid);
+        RTgrid = gm.gridManager.RTgrid;
     }
 
     // --- Public trigger (losowy start/koniec, startuje tryb iteracyjny na klawisz) ---
@@ -48,7 +48,7 @@ public class PathManager : MonoBehaviour
         var startTile = walkable[UnityEngine.Random.Range(0, walkable.Count)];
         var endTile = walkable[UnityEngine.Random.Range(0, walkable.Count)];
         while (endTile == startTile) endTile = walkable[UnityEngine.Random.Range(0, walkable.Count)];
-        var startHead = (Heading)UnityEngine.Random.Range(0, 4);
+        var startHead = (Heading)UnityEngine.Random.Range(0, 4); //POBRAÆ Z ROBOTA
 
         // wyczyœæ i zaznacz start/goal
         foreach (var t in grid) t.color = new Color32(0, 0, 0, 255); // czarne t³o
@@ -56,8 +56,28 @@ public class PathManager : MonoBehaviour
         grid[endTile.x, endTile.y].color = new Color32(255, 64, 64, 255);
         gm.gridManager.RefreshAll();
 
-        if (acoRoutine != null) StopCoroutine(acoRoutine);
-        acoRoutine = StartCoroutine(ACO_Interactive(startTile, endTile, startHead, startStep));
+        acoRoutine = StartCoroutine(ACO_Interactive(startTile, endTile, startHead, startStep, path =>
+        {
+            if (path == null || path.Count == 0) return;
+
+            foreach (var node in path)
+            {
+                // upewnij siê, ¿e mamy ten step — bez klonów: dopchaj referencj¹ do ostatniego
+                while (RTgrid.Count <= node.step)
+                {
+                    var toReuse = RTgrid.Count > 0 ? RTgrid[RTgrid.Count - 1] : grid;
+                    RTgrid.Add(toReuse); // UWAGA: ta sama referencja!
+                }
+
+                // modyfikacja kafla w danym kroku
+                RTgrid[node.step][node.x, node.y].flags |= TileFlags.Blocked;
+
+                // jeœli chcesz odmalowaæ/utrwaliæ ten step:
+                gm.gridManager.UpdateRTgrid(node.step, RTgrid[node.step]);
+
+                Debug.Log($"Step {node.step}: ({node.x},{node.y}) -> {node.action}");
+            }
+        }));
     }
 
     // ======= MODEL STANU =======
@@ -65,14 +85,16 @@ public class PathManager : MonoBehaviour
     {
         public int x, y;
         public Heading head;
-        public Node(int x, int y, Heading h) { this.x = x; this.y = y; this.head = h; }
+        public RobotAction action; // akcja prowadz¹ca do tego stanu
+        public int step;
+        public Node(int x, int y, Heading h, RobotAction a, int s ) { this.x = x; this.y = y; this.head = h; this.action = a; this.step = s; }
         public bool Equals(Node other) => x == other.x && y == other.y && head == other.head;
         public override bool Equals(object obj) => obj is Node n && Equals(n);
         public override int GetHashCode() => (x * 73856093) ^ (y * 19349663) ^ ((int)head * 83492791);
     }
 
     // ======= ACO: tryb interaktywny (iteracja -> kolorowanie -> czekanie na klawisz) =======
-    IEnumerator ACO_Interactive(Tile start, Tile goal, Heading startHead, int startStep)
+    IEnumerator ACO_Interactive(Tile start, Tile goal, Heading startHead, int startStep, System.Action<List<Node>> onDone)
     {
         int w = grid.GetLength(0), h = grid.GetLength(1);
         int S = w * h * 4; // stany (x,y,heading)
@@ -100,7 +122,7 @@ public class PathManager : MonoBehaviour
             // 2) Mrówki
             for (int k = 0; k < ants; k++)
             {
-                var nodes = ConstructAntPath( new Node( start.x, start.y, startHead), (goal.x, goal.y), tau, maxSteps, startStep);
+                var nodes = ConstructAntPath( new Node( start.x, start.y, startHead, RobotAction.Wait, startStep), (goal.x, goal.y), tau, maxSteps, startStep);
 
                 if (nodes != null && (bestPath == null || nodes.Count < bestPath.Count )) bestPath = nodes;
             }
@@ -131,14 +153,16 @@ public class PathManager : MonoBehaviour
 
             gm.gridManager.RefreshAll();
 
-            // 5) Czekaj na klawisz
-            yield return new WaitUntil(() =>
-            {
-                var kb = Keyboard.current;
-                return kb != null;//&& kb[nextIterationKey].wasPressedThisFrame;
-            });
+            //// 5) Czekaj na klawisz
+            //yield return new WaitUntil(() =>
+            //{
+            //    var kb = Keyboard.current;
+            //    return kb != null;//&& kb[nextIterationKey].wasPressedThisFrame;
+            //});
         }
         acoRoutine = null;
+        onDone?.Invoke(bestPath);
+        yield break;
     }
 
     // ======= Pojedyncza mrówka =======
@@ -149,7 +173,7 @@ public class PathManager : MonoBehaviour
 
         Node cur = start;
 
-        for (int s = 0; s < maxSteps; s++)
+        for (int s = startStep; s < (maxSteps+startStep); s++)
         {
             if (cur.x == goal.gx && cur.y == goal.gy) return (path);
 
@@ -223,13 +247,13 @@ public class PathManager : MonoBehaviour
         switch (a)
         {
             case RobotAction.TurnLeft:
-                return (new Node(s.x, s.y, TurnLeft(s.head)), true);
+                return (new Node(s.x, s.y, TurnLeft(s.head), RobotAction.TurnLeft, s.step+1), true);
 
             case RobotAction.TurnRight:
-                return (new Node(s.x, s.y, TurnRight(s.head)), true);
+                return (new Node(s.x, s.y, TurnRight(s.head), RobotAction.TurnRight, s.step + 1), true);
 
             case RobotAction.Wait:
-                return (new Node(s.x, s.y, s.head), true);
+                return (new Node(s.x, s.y, s.head, RobotAction.Wait, s.step+1), true);
 
             case RobotAction.Forward:
                 var (nx, ny) = ForwardPos(s.x, s.y, s.head);
@@ -238,7 +262,7 @@ public class PathManager : MonoBehaviour
                     return (s, false);
 
                 float tileCost = Mathf.Max(1, grid[nx, ny].cost);
-                return (new Node(nx, ny, s.head), true);
+                return (new Node(nx, ny, s.head, RobotAction.Forward, s.step+1), true);
         }
         return (s, false);
     }
