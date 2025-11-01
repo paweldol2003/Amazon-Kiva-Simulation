@@ -51,11 +51,11 @@ public class GridManager : MonoBehaviour
                 renderers[x, y] = mr;
             }
 
-        //Debug.Log($"iloï¿½ï¿½ gridï¿½w = {RTgrid.Count}");
+        //Debug.Log($"iloœæ gridów = {RTgrid.Count}");
 
         RTgrid = new List<Tile[,]>();
         RTgrid.Add(grid);
-        Debug.Log($"iloï¿½ï¿½ gridï¿½w = {RTgrid.Count}");
+        Debug.Log($"iloœæ gridów = {RTgrid.Count}");
     }
 
 
@@ -77,6 +77,18 @@ public class GridManager : MonoBehaviour
         for (int y = 0; y < length; y++)
             for (int x = 0; x < width; x++)
                 renderers[x, y].sharedMaterial.color = grid[x, y].color;
+    }
+
+    public void RefreshOneStep(Tile[,] stepGrid)
+    {
+        foreach (var tile in stepGrid)
+        {
+            if (tile.flags.HasFlag(TileFlags.Blocked) )
+                tile.color = Color.green;
+        }
+        for (int y = 0; y < length; y++)
+            for (int x = 0; x < width; x++)
+                renderers[x, y].sharedMaterial.color = stepGrid[x, y].color;
     }
 
     // --- Pomocnicze --------------------------------------------------
@@ -102,14 +114,14 @@ public class GridManager : MonoBehaviour
     public void UpdateRTgrid(int Step, Tile[,] Grid = null)
     {
         if (Grid == null && Step < RTgrid.Count)
-            return;                         // kolejny krok, nic siï¿½ nie zmieniï¿½o
+            return;                         // kolejny krok, nic siê nie zmieni³o
         if (Grid == null)
-            RTgrid.Add(RTgrid[Step-1]);     // dodaj kopiï¿½ poprzedniego kroku
+            RTgrid.Add(RTgrid[Step-1]);     // dodaj kopiê poprzedniego kroku
         else if (Step == RTgrid.Count)
             RTgrid.Add(Grid);               // dodaj nowy krok
         else if  (Step < RTgrid.Count)
-            RTgrid[Step] = Grid;           // nadpisz istniejï¿½cy krok
+            RTgrid[Step] = Grid;           // nadpisz istniej¹cy krok
         else
-            Debug.LogError("[GridManager] Nie moï¿½na dodaï¿½ kroku do RTgrid - nieciï¿½gï¿½oï¿½ï¿½ krokï¿½w.");
+            Debug.LogError("[GridManager] Nie mo¿na dodaæ kroku do RTgrid - nieci¹g³oœæ kroków.");
     }
 }
