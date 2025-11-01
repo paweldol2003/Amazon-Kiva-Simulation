@@ -11,6 +11,7 @@ public class GameManager : MonoBehaviour
     public GridManager gridManager;
     public PathManager pathManager;
     public AutomationManager automationManager;
+    public UIManager UIManager;
 
     void Awake()
     {
@@ -28,6 +29,7 @@ public class GameManager : MonoBehaviour
         if (robotManager != null) robotManager.Init(this);
         if (pathManager != null) pathManager.Init(this);
         if (automationManager != null) automationManager.Init(this);
+        if (UIManager != null) UIManager.Init(this);
 
 
 
