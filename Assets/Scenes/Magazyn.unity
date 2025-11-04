@@ -352,11 +352,29 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   width: 106
   length: 46
-  startShelfOccupation: 0.071
-  shelfColor: {r: 0, g: 0.8, b: 0.2, a: 1}
-  occupiedShelfColor: {r: 0, g: 0.5, b: 0.1, a: 1}
-  corridorColor: {r: 0.9, g: 0.85, b: 0.3, a: 1}
-  spawnColor: {r: 0.2, g: 0.2, b: 1, a: 1}
+  startShelfOccupation: 0.107
+  tileColors:
+    walkable:
+      serializedVersion: 2
+      rgba: 4294309365
+    blocked:
+      serializedVersion: 2
+      rgba: 4278190080
+    shelf:
+      serializedVersion: 2
+      rgba: 4279099392
+    occupiedShelf:
+      serializedVersion: 2
+      rgba: 4279982870
+    reserved:
+      serializedVersion: 2
+      rgba: 4279111243
+    spawn:
+      serializedVersion: 2
+      rgba: 4294932520
+    goal:
+      serializedVersion: 2
+      rgba: 4278244095
   cellSize: 1
   origin: {x: 0, y: 0}
   tileMaterial: {fileID: 2100000, guid: 93e094922856f55499e522c32dcb121e, type: 2}
