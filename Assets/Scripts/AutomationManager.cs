@@ -34,6 +34,7 @@ public class AutomationManager : MonoBehaviour
             //gm.pathManager.ExecuteStep(currentStep);
             currentStep++;
             gm.gridManager.UpdateRTgrid(currentStep);
+            gm.gridManager.RefreshAll(currentStep);
 
             Debug.Log("[AutomationManager] Aktualny step: " + (currentStep));
             Debug.Log($"Iloœæ gridów:  {RTgrid.Count}");

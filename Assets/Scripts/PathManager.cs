@@ -7,7 +7,7 @@ using UnityEngine.InputSystem; // New Input System
 public class PathManager : MonoBehaviour
 {
     private GameManager gm;
-    private Tile[,] grid;
+    //private Tile[,] grid;
     private List<Tile[,]> RTgrid; //Real time grid
     public enum Heading { North = 0, East = 1, South = 2, West = 3 }
     public enum RobotAction { Forward = 0, TurnLeft = 1, TurnRight = 2, Wait = 3 }
@@ -32,17 +32,17 @@ public class PathManager : MonoBehaviour
     public void Init(GameManager gm) => this.gm = gm;
     void Start()
     {
-        grid = gm.gridManager.grid;
+        //grid = gm.gridManager.grid;
         RTgrid = gm.gridManager.RTgrid;
     }
 
     // --- Public trigger (losowy start/koniec, startuje tryb iteracyjny na klawisz) ---
     public void SetRandomPath(int startStep)
     {
-        if (grid == null) { Debug.LogError("Grid not initialized!"); return; }
+        if (RTgrid[startStep] == null) { Debug.LogError("Grid not initialized!"); return; }
 
         var walkable = new List<Tile>();
-        foreach (var t in grid) if (t.Walkable) walkable.Add(t);
+        foreach (var t in RTgrid[startStep]) if (t.Walkable) walkable.Add(t);
         if (walkable.Count < 2) { Debug.LogWarning("Not enough walkable."); return; }
 
         var startTile = walkable[UnityEngine.Random.Range(0, walkable.Count)];
@@ -50,11 +50,7 @@ public class PathManager : MonoBehaviour
         while (endTile == startTile) endTile = walkable[UnityEngine.Random.Range(0, walkable.Count)];
         var startHead = (Heading)UnityEngine.Random.Range(0, 4); //POBRAÆ Z ROBOTA
 
-        // wyczyœæ i zaznacz start/goal
-        foreach (var t in grid) t.color = new Color32(0, 0, 0, 255); // czarne t³o
-        grid[startTile.x, startTile.y].color = new Color32(255, 64, 64, 255);
-        grid[endTile.x, endTile.y].color = new Color32(255, 64, 64, 255);
-        gm.gridManager.RefreshAll();
+
 
         acoRoutine = StartCoroutine(ACO_Interactive(startTile, endTile, startHead, startStep, path =>
         {
@@ -62,13 +58,6 @@ public class PathManager : MonoBehaviour
 
             foreach (var node in path)
             {
-                // upewnij siê, ¿e mamy ten step — bez klonów: dopchaj referencj¹ do ostatniego
-                while (RTgrid.Count <= node.step)
-                {
-                    var toReuse = RTgrid.Count > 0 ? RTgrid[RTgrid.Count - 1] : grid;
-                    RTgrid.Add(toReuse); // UWAGA: ta sama referencja!
-                }
-
                 // modyfikacja kafla w danym kroku
                 RTgrid[node.step][node.x, node.y].flags |= TileFlags.Blocked;
 
@@ -96,7 +85,7 @@ public class PathManager : MonoBehaviour
     // ======= ACO: tryb interaktywny (iteracja -> kolorowanie -> czekanie na klawisz) =======
     IEnumerator ACO_Interactive(Tile start, Tile goal, Heading startHead, int startStep, System.Action<List<Node>> onDone)
     {
-        int w = grid.GetLength(0), h = grid.GetLength(1);
+        int w = RTgrid[startStep].GetLength(0), h = RTgrid[startStep].GetLength(1);
         int S = w * h * 4; // stany (x,y,heading)
         int A = 4;         // akcje
 
@@ -145,13 +134,13 @@ public class PathManager : MonoBehaviour
             }
 
             // 4) Wizualizacja feromonów w kanale R
-            ColorByPheromones_R(tau, w, h);
+            //ColorByPheromones_R(tau, w, h);
 
             // podbij start/goal
-            grid[start.x, start.y].color = new Color32(200, 200, 200, 255);
-            grid[goal.x, goal.y].color = new Color32(100, 100, 100, 255);
+            //grid[start.x, start.y].color = new Color32(200, 200, 200, 255);
+            //grid[goal.x, goal.y].color = new Color32(100, 100, 100, 255);
 
-            gm.gridManager.RefreshAll();
+            //gm.gridManager.RefreshAll(0); //DO ANALIZY
 
             //// 5) Czekaj na klawisz
             //yield return new WaitUntil(() =>
@@ -168,7 +157,7 @@ public class PathManager : MonoBehaviour
     // ======= Pojedyncza mrówka =======
     List<Node> ConstructAntPath(Node start, (int gx, int gy) goal, float[,] tau, int maxSteps, int startStep)
     {
-        int w = grid.GetLength(0), h = grid.GetLength(1);
+        int w = RTgrid[startStep].GetLength(0), h = RTgrid[startStep].GetLength(1);
         var path = new List<Node>(64) { start };
 
         Node cur = start;
@@ -186,10 +175,12 @@ public class PathManager : MonoBehaviour
             var weights = new float[actions.Count];
             var nexts = new Node[actions.Count];
 
+            gm.gridManager.UpdateRTgrid(s + 1); // upewnij siê, ¿e jest grid na nastêpny krok
+
             for (int i = 0; i < actions.Count; i++)
             {
                 var a = actions[i];
-                var (nxt, allowed) = Apply(cur, a);
+                var (nxt, allowed) = Apply(cur, a, w, h);
                 if (!allowed) { weights[i] = 0f; continue; }
 
                 float tau_ = Mathf.Max(1e-6f, tau[si, (int)a]);
@@ -206,7 +197,7 @@ public class PathManager : MonoBehaviour
                 bool moved = false;
                 for (int i = 0; i < actions.Count; i++)
                 {
-                    var (nxt, ok) = Apply(cur, actions[i]);
+                    var (nxt, ok) = Apply(cur, actions[i],w ,h);
                     if (ok)
                     {
                         cur = nxt; path.Add(cur);
@@ -242,7 +233,7 @@ public class PathManager : MonoBehaviour
         };
     }
 
-    (Node next, bool allowed) Apply(Node s, RobotAction a)
+    (Node next, bool allowed) Apply(Node s, RobotAction a, int w, int h)
     {
         switch (a)
         {
@@ -258,11 +249,18 @@ public class PathManager : MonoBehaviour
             case RobotAction.Forward:
                 var (nx, ny) = ForwardPos(s.x, s.y, s.head);
 
-                if (!InsideGrid(nx, ny) || (blockForwardIfNotWalkable && !grid[nx, ny].Walkable))
-                    return (s, false);
+                bool inBounds = nx >= 0 && ny >= 0 && nx < w && ny < h;
 
-                float tileCost = Mathf.Max(1, grid[nx, ny].cost);
-                return (new Node(nx, ny, s.head, RobotAction.Forward, s.step+1), true);
+                if (!inBounds)
+                    return (s, false);
+                else
+                {
+                    bool walkable = !blockForwardIfNotWalkable || RTgrid[s.step + 1][nx, ny].Walkable;
+                    if (!walkable)
+                        return (s, false);
+                }
+                //float tileCost = Mathf.Max(1, grid[nx, ny].cost);
+                return (new Node(nx, ny, s.head, RobotAction.Forward, s.step + 1), true);
         }
         return (s, false);
     }
@@ -282,11 +280,6 @@ public class PathManager : MonoBehaviour
         return (x, y);
     }
 
-    bool InsideGrid(int x, int y)
-    {
-        int w = grid.GetLength(0), h = grid.GetLength(1);
-        return x >= 0 && y >= 0 && x < w && y < h;
-    }
 
     // ======= Heurystyka / indeksy / pomocnicze =======
     float HeuristicDesirability(Node c, Node n, (int gx, int gy) goal)
@@ -325,42 +318,42 @@ public class PathManager : MonoBehaviour
     }
 
     // ======= Wizualizacja feromonów w kanale R =======
-    void ColorByPheromones_R(float[,] tau, int w, int h)
-    {
-        // sumujemy feromony akcji Forward ze wszystkich headingów dla danego (x,y)
-        float[,] score = new float[w, h];
-        float maxScore = 1e-6f;
+    //void ColorByPheromones_R(float[,] tau, int w, int h)
+    //{
+    //    // sumujemy feromony akcji Forward ze wszystkich headingów dla danego (x,y)
+    //    float[,] score = new float[w, h];
+    //    float maxScore = 1e-6f;
 
-        for (int y = 0; y < h; y++)
-            for (int x = 0; x < w; x++)
-            {
-                float s = 0f;
-                for (int head = 0; head < 4; head++)
-                {
-                    int si = StateIndex(x, y, (Heading)head, w, h);
-                    s += Mathf.Max(0f, tau[si, (int)RobotAction.Forward]);
-                    // (opcjonalnie, lekkie doci¹¿enie zakrêtów)
-                    // s += 0.3f * Mathf.Max(0f, tau[si, (int)RobotAction.TurnLeft]);
-                    // s += 0.3f * Mathf.Max(0f, tau[si, (int)RobotAction.TurnRight]);
-                }
-                // opcjonalna log-skala dla lepszej separacji wizualnej:
-                // s = Mathf.Log(1f + s);
-                score[x, y] = s;
-                if (s > maxScore) maxScore = s;
-            }
+    //    for (int y = 0; y < h; y++)
+    //        for (int x = 0; x < w; x++)
+    //        {
+    //            float s = 0f;
+    //            for (int head = 0; head < 4; head++)
+    //            {
+    //                int si = StateIndex(x, y, (Heading)head, w, h);
+    //                s += Mathf.Max(0f, tau[si, (int)RobotAction.Forward]);
+    //                // (opcjonalnie, lekkie doci¹¿enie zakrêtów)
+    //                // s += 0.3f * Mathf.Max(0f, tau[si, (int)RobotAction.TurnLeft]);
+    //                // s += 0.3f * Mathf.Max(0f, tau[si, (int)RobotAction.TurnRight]);
+    //            }
+    //            // opcjonalna log-skala dla lepszej separacji wizualnej:
+    //            // s = Mathf.Log(1f + s);
+    //            score[x, y] = s;
+    //            if (s > maxScore) maxScore = s;
+    //        }
 
-        // malowanie: tylko kana³ R (obstacles ciemne)
-        for (int y = 0; y < h; y++)
-            for (int x = 0; x < w; x++)
-            {
-                if (!grid[x, y].Walkable)
-                {
-                    grid[x, y].color = new Color32(40, 0, 0, 255);
-                    continue;
-                }
-                float norm = score[x, y] / maxScore; // 0..1
-                byte R = (byte)Mathf.RoundToInt(255f * norm);
-                grid[x, y].color = new Color32(R, 0, 0, 255);
-            }
-    }
+    //    // malowanie: tylko kana³ R (obstacles ciemne)
+    //    for (int y = 0; y < h; y++)
+    //        for (int x = 0; x < w; x++)
+    //        {
+    //            if (!grid[x, y].Walkable)
+    //            {
+    //                grid[x, y].color = new Color32(40, 0, 0, 255);
+    //                continue;
+    //            }
+    //            float norm = score[x, y] / maxScore; // 0..1
+    //            byte R = (byte)Mathf.RoundToInt(255f * norm);
+    //            grid[x, y].color = new Color32(R, 0, 0, 255);
+    //        }
+    //}
 }

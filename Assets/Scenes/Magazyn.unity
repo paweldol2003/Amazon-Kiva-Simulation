@@ -352,6 +352,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   width: 106
   length: 46
+  startShelfOccupation: 0.071
+  shelfColor: {r: 0, g: 0.8, b: 0.2, a: 1}
+  occupiedShelfColor: {r: 0, g: 0.5, b: 0.1, a: 1}
+  corridorColor: {r: 0.9, g: 0.85, b: 0.3, a: 1}
+  spawnColor: {r: 0.2, g: 0.2, b: 1, a: 1}
   cellSize: 1
   origin: {x: 0, y: 0}
   tileMaterial: {fileID: 2100000, guid: 93e094922856f55499e522c32dcb121e, type: 2}
@@ -1056,6 +1061,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8f96f301f04c5ee4d98df36c24ab3552, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  robotPrefab: {fileID: 6943977804284570157, guid: ad17bae14f6bbe648aad6243b2f507e0, type: 3}
 --- !u!4 &1506708469
 Transform:
   m_ObjectHideFlags: 0
@@ -1216,7 +1222,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!114 &1914870530
 MonoBehaviour:
   m_ObjectHideFlags: 0
