@@ -60,6 +60,7 @@ public class PathManager : MonoBehaviour
             {
                 // modyfikacja kafla w danym kroku
                 RTgrid[node.step][node.x, node.y].flags |= TileFlags.Blocked;
+                RTgrid[node.step+1][node.x, node.y].flags |= TileFlags.Blocked;
 
                 // jeœli chcesz odmalowaæ/utrwaliæ ten step:
                 gm.gridManager.UpdateRTgrid(node.step, RTgrid[node.step]);
@@ -68,6 +69,61 @@ public class PathManager : MonoBehaviour
             }
         }));
     }
+    public void SetStandardPath(int startStep)
+    {
+        if (RTgrid[startStep] == null) { Debug.LogError("Grid not initialized!"); return; }
+        RobotController robot = gm.robotManager.GetFreeRobot();
+
+        var walkable = new List<Tile>();
+        foreach (var t in RTgrid[startStep]) if (t.Walkable) walkable.Add(t);
+        Tile startTile = robot.HisTile;
+        var endTile = walkable[UnityEngine.Random.Range(0, walkable.Count)];
+
+
+        if (startTile == null || endTile == null) { Debug.LogWarning("No spawn/goal tiles."); return; }
+        var startHead = robot.Heading; 
+
+        acoRoutine = StartCoroutine(ACO_Interactive(startTile, endTile, startHead, startStep, path =>
+        {
+            if (path == null || path.Count == 0) return;
+            //foreach (var node in path)
+            //{
+            //    // modyfikacja kafla w danym kroku
+            //    RTgrid[node.step][node.x, node.y].flags |= TileFlags.Blocked;
+            //    RTgrid[node.step + 1][node.x, node.y].flags |= TileFlags.Blocked;
+            //    // jeœli chcesz odmalowaæ/utrwaliæ ten step:
+            //    gm.gridManager.UpdateRTgrid(node.step, RTgrid[node.step]);
+            //    Debug.Log($"Step {node.step}: ({node.x},{node.y}) -> {node.action}");
+            //}
+            for (int i = 0; i < path.Count - 1; i++)
+            {
+                var node = path[i];
+                var nxtnode = path[i + 1];
+
+                int step = node.step;
+                if (step < 0 || step >= RTgrid.Count) continue;
+
+                var gridStep = RTgrid[step];
+                gridStep[node.x, node.y].flags |= TileFlags.Blocked;
+                gridStep[nxtnode.x, nxtnode.y].flags |= TileFlags.Blocked;
+
+                gm.gridManager.UpdateRTgrid(step, gridStep);
+            }
+            gm.robotManager.AssignPlanToRobot(robot, path);
+
+        }));
+    }
+    //public void SetSpawnpointPath(int startStep, RobotController robot)
+    //{
+    //    if (RTgrid[startStep] == null) { Debug.LogError("Grid not initialized!"); return; }
+
+    //    var walkable = new List<Tile>();
+    //    foreach (var t in RTgrid[startStep]) if (t.Walkable) walkable.Add(t);
+    //    Tile startTile = robot.HisTile;
+    //    Tile endTile = robot.SpawnTile;
+
+
+    //}
 
     // ======= MODEL STANU =======
     public struct Node : IEquatable<Node>

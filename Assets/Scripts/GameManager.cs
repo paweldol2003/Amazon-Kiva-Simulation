@@ -26,9 +26,9 @@ public class GameManager : MonoBehaviour
         if (gridManager != null) gridManager.Init(this);
         if (cameraManager != null) cameraManager.Init(this);
         if (selectionManager != null) selectionManager.Init(this);
-        if (robotManager != null) robotManager.Init(this);
         if (pathManager != null) pathManager.Init(this);
         if (automationManager != null) automationManager.Init(this);
+        if (robotManager != null) robotManager.Init(this);
         if (UIManager != null) UIManager.Init(this);
 
 

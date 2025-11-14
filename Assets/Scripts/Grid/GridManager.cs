@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+ï»¿using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
 
@@ -21,7 +21,7 @@ public class GridManager : MonoBehaviour
     public float cellSize = 1f;
     public Vector2 origin = Vector2.zero;
 
-    [Header("Wygl¹d")]
+    [Header("WyglÄ…d")]
     public Material tileMaterial; // np. URP/Unlit lub Standard
 
     private Tile[,] grid;
@@ -46,7 +46,7 @@ public class GridManager : MonoBehaviour
                 var quad = GameObject.CreatePrimitive(PrimitiveType.Quad);
                 quad.name = $"Tile_{x}_{y}";
                 quad.transform.SetParent(transform, false);
-                quad.transform.rotation = Quaternion.Euler(90f, 0f, 0f); // le¿y p³asko na XZ
+                quad.transform.rotation = Quaternion.Euler(90f, 0f, 0f); // leÅ¼y pÅ‚asko na XZ
                 quad.transform.localScale = new Vector3(cellSize, cellSize, 1f);
                 quad.transform.position = new Vector3(
                     origin.x + (x + 0.5f) * cellSize,
@@ -65,9 +65,10 @@ public class GridManager : MonoBehaviour
 
         RTgrid = new List<Tile[,]>();
         UpdateRTgrid(0, grid);
+        //UpdateRTgrid(5000); //TEST CZY TO PRZYSPIESZY
         RefreshAll(0);
 
-        Debug.Log($"iloœæ gridów = {RTgrid.Count}");
+        Debug.Log($"iloÅ›Ä‡ gridÃ³w = {RTgrid.Count}");
     }
 
 
@@ -124,7 +125,7 @@ public class GridManager : MonoBehaviour
             }
         }
 
-        // Przejœcia poprzeczne (odkorkuj na korytarze)
+        // PrzejÅ›cia poprzeczne (odkorkuj na korytarze)
         for (int y = 0; y < length; y += 7)
             for (int x = 0; x < width; x++)
             {
@@ -139,16 +140,16 @@ public class GridManager : MonoBehaviour
                 shelfTiles.Remove(grid[x, y]);
             }
 
-        // Ustal flagi pó³ek (kolor nada Tile.UpdateColor)
+        // Ustal flagi pÃ³Å‚ek (kolor nada Tile.UpdateColor)
         foreach (var t in shelfTiles)
         {
             t.flags |= TileFlags.Shelf;
-            // losowe zajêcie pó³ki
+            // losowe zajÄ™cie pÃ³Å‚ki
             if (Random.value < startShelfOccupation)
                 t.flags |= TileFlags.Occupied;
             else
                 t.flags &= ~TileFlags.Occupied;
-            // UWAGA: nie ruszamy rendererów – kolor ustawi siê z flag przy PushColors
+            // UWAGA: nie ruszamy rendererÃ³w â€“ kolor ustawi siÄ™ z flag przy PushColors
         }
     }
 
@@ -160,7 +161,7 @@ public class GridManager : MonoBehaviour
         {
             int x = i * spacing + spacing / 2;
             spawnPoints.Add(new Vector2Int(x, 0));
-            grid[x, 0].flags |= TileFlags.Spawn; // kolor z flag
+            grid[x, 0].flags |= (TileFlags.Spawn | TileFlags.Blocked); // kolor z flag
         }
 
         Debug.Log("Spawnpoints:");
@@ -169,8 +170,8 @@ public class GridManager : MonoBehaviour
     }
 
 
-    // Deep copy – tworzy NOW¥ tablicê i NOWE obiekty Tile (logiczne pola).
-    // NIE przenosimy rendererów/meshy – te s¹ tylko w g³ównym gridzie do rysowania.
+    // Deep copy â€“ tworzy NOWÄ„ tablicÄ™ i NOWE obiekty Tile (logiczne pola).
+    // NIE przenosimy rendererÃ³w/meshy â€“ te sÄ… tylko w gÅ‚Ã³wnym gridzie do rysowania.
     private Tile[,] CloneStep(Tile[,] src)
     {
         int w = src.GetLength(0), h = src.GetLength(1);
@@ -183,7 +184,7 @@ public class GridManager : MonoBehaviour
                 var t = new Tile(s.x, s.y, w); // liczy poprawnie index1D
 
                 t.baseColor = s.baseColor; // <-- najpierw bazowy kolor
-                t.flags = s.flags;     // <-- to wywo³a UpdateColor() z u¿yciem baseColor
+                t.flags = s.flags;     // <-- to wywoÅ‚a UpdateColor() z uÅ¼yciem baseColor
                 t.cost = s.cost;
                 t.heat = s.heat;
                 dst[x, y] = t;
@@ -201,53 +202,56 @@ public class GridManager : MonoBehaviour
             return;
         }
 
-        // Inicjalizacja listy kroków
+        // Inicjalizacja listy krokÃ³w
         if (RTgrid == null) RTgrid = new List<Tile[,]>();
 
-        // Je¿eli to pierwszy raz – dodaj krok 0 jako kopiê aktualnego gridu sceny
+        // JeÅ¼eli to pierwszy raz â€“ dodaj krok 0 jako kopiÄ™ aktualnego gridu sceny
         if (RTgrid.Count == 0)
         {
-            // 'this.grid' – g³ówna, renderowana siatka w scenie
+            // 'this.grid' â€“ gÅ‚Ã³wna, renderowana siatka w scenie
             RTgrid.Add(CloneStep(this.grid));
         }
 
         // Przypadki:
-        // 1) gridForStep == null  => chcemy skopiowaæ poprzedni krok
-        // 2) gridForStep != null  => chcemy u¿yæ przekazanej siatki (ale dodaæ JEJ kopiê)
+        // 1) gridForStep == null  => chcemy skopiowaÄ‡ poprzedni krok
+        // 2) gridForStep != null  => chcemy uÅ¼yÄ‡ przekazanej siatki (ale dodaÄ‡ JEJ kopiÄ™)
 
         if (gridForStep == null)
         {
+            if (step > RTgrid.Count)
+            {
+                UpdateRTgrid(step - 1);
+                Debug.LogError($"[GridManager] NieciÄ…gÅ‚oÅ›Ä‡ krokÃ³w (brak krokÃ³w poÅ›rednich). WywaÅ‚any step: {step}");
+            }
+
             if (step == RTgrid.Count)
             {
-                // dodaj jako nowy krok – KOPIÊ poprzedniego
+                // dodaj jako nowy krok â€“ KOPIÄ˜ poprzedniego
                 RTgrid.Add(CloneStep(RTgrid[step - 1]));
             }
             else if (step < RTgrid.Count)
             {
-                // „nic siê nie zmieni³o” – ale jeœli chcesz, mo¿esz nadpisaæ kopi¹ poprzedniego
+                // â€žnic siÄ™ nie zmieniÅ‚oâ€ â€“ ale jeÅ›li chcesz, moÅ¼esz nadpisaÄ‡ kopiÄ… poprzedniego
                 // RTgrid[step] = CloneStep(RTgrid[step]); // zwykle NO-OP
                 return;
             }
-            else
-            {
-                Debug.LogError("[GridManager] Nieci¹g³oœæ kroków (brak kroków poœrednich).");
-            }
+            
         }
         else
         {
             if (step == RTgrid.Count)
             {
-                // nowy krok – dodaj KOPIÊ przekazanego gridu
+                // nowy krok â€“ dodaj KOPIÄ˜ przekazanego gridu
                 RTgrid.Add(CloneStep(gridForStep));
             }
             else if (step < RTgrid.Count)
             {
-                // nadpisz istniej¹cy krok – KOPI¥ przekazanego gridu
+                // nadpisz istniejÄ…cy krok â€“ KOPIÄ„ przekazanego gridu
                 RTgrid[step] = CloneStep(gridForStep);
             }
             else
             {
-                Debug.LogError("[GridManager] Nieci¹g³oœæ kroków (brak kroków poœrednich).");
+                Debug.LogError("[GridManager] NieciÄ…gÅ‚oÅ›Ä‡ krokÃ³w (brak krokÃ³w poÅ›rednich).");
             }
         }
     }

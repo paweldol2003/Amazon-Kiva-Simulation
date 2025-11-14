@@ -352,7 +352,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   width: 106
   length: 46
-  startShelfOccupation: 0.107
+  startShelfOccupation: 0.42
   tileColors:
     walkable:
       serializedVersion: 2
@@ -1079,7 +1079,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8f96f301f04c5ee4d98df36c24ab3552, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  robotPrefab: {fileID: 6943977804284570157, guid: ad17bae14f6bbe648aad6243b2f507e0, type: 3}
+  robotPrefab: {fileID: 3624200053870900838, guid: ad17bae14f6bbe648aad6243b2f507e0, type: 3}
+  visualHeight: 0.5
+  defaultMoveTime: 0.15
 --- !u!4 &1506708469
 Transform:
   m_ObjectHideFlags: 0
@@ -1382,6 +1384,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   modeSwitch: 27
   randomPath: 20
+  standardPath: 21
   nextStep: 62
   currentStep: 0
 --- !u!1660057539 &9223372036854775807

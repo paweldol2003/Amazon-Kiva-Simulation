@@ -10,6 +10,7 @@ public class AutomationManager : MonoBehaviour
     [Header("Keybinds")]
     public Key modeSwitch = Key.M;
     public Key randomPath = Key.F;
+    public Key standardPath = Key.G;
     public Key nextStep = Key.RightArrow;
 
     public int currentStep = 0;
@@ -28,12 +29,19 @@ public class AutomationManager : MonoBehaviour
 
         if (kb[randomPath].wasPressedThisFrame)
             gm.pathManager.SetRandomPath(currentStep);
+        if (kb[standardPath].wasPressedThisFrame)
+        {
+            gm.pathManager.SetStandardPath(currentStep);
+            gm.robotManager.AdvanceRobotsAtStep(currentStep, 0.15f);
+        }
 
         if (kb[nextStep].wasPressedThisFrame) 
         {
             //gm.pathManager.ExecuteStep(currentStep);
             currentStep++;
             gm.gridManager.UpdateRTgrid(currentStep);
+            gm.robotManager.AdvanceRobotsAtStep(currentStep, 0.15f);
+
             gm.gridManager.RefreshAll(currentStep);
 
             Debug.Log("[AutomationManager] Aktualny step: " + (currentStep));
