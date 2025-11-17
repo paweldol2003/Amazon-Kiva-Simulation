@@ -78,7 +78,7 @@ public class RobotManager : MonoBehaviour
             list.Add(new RobotInstruction(
                 n.step,
                 n.action,
-                new Vector2Int(n.x, n.y),
+                RTgrid[n.step][n.x, n.y],
                 n.head
             ));
         }
@@ -89,14 +89,23 @@ public class RobotManager : MonoBehaviour
     /// <summary>
     /// Uruchamia wykonanie instrukcji zaplanowanych na dany step (dla wszystkich robotów).
     /// </summary>
-    public void AdvanceRobotsAtStep(int step, float? moveTimeOverride = null)
+    public void MoveAllRobots(int step, float? moveTimeOverride = null)
     {
         float cs = gm.gridManager.cellSize;
         Vector2 org = gm.gridManager.origin;
         float t = moveTimeOverride ?? defaultMoveTime;
 
         for (int i = 0; i < robots.Count; i++)
-            if (robots[i]) robots[i].TryExecuteStep(step, cs, org, t);
+        {
+            if (robots[i])
+            {
+                var result = robots[i].TryExecuteStep(step, cs, org, t);
+                if (robots[i].Status == RobotStatus.BusyWithoutPackage)
+                {
+                    gm.pathManager.SetSpawnpointPath(step+1, robots[i]);
+                }
+            }
+        }
     }
 
     /// <summary>

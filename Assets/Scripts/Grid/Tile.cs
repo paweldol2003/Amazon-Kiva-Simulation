@@ -30,7 +30,7 @@ public class Tile
         set { _flags = value; UpdateColor(); }
     }
 
-    public bool Walkable => (_flags & (TileFlags.Blocked | TileFlags.Shelf | TileFlags.Occupied)) == 0;
+    public bool Walkable => (_flags & TileFlags.Blocked) == 0;
 
     // kolory s¹ globalne – przypisuje je GridManager
     public static TileColors Palette;
@@ -53,6 +53,7 @@ public class Tile
         if ((_flags & TileFlags.Shelf) != 0) { color = C.shelf; return; }
         if ((_flags & TileFlags.Blocked) != 0) { color = C.blocked; return; }
         if ((_flags & TileFlags.Spawn) != 0) { color = C.spawn; return; }
+        if ((_flags & TileFlags.Spawn | TileFlags.Blocked) == 0) { color = C.blocked; return; }
         if ((_flags & TileFlags.Goal) != 0) { color = C.goal; return; }
         if ((_flags & TileFlags.Reserved) != 0) { color = C.reserved; return; }
         color = baseColor;

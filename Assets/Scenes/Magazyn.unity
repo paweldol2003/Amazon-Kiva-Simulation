@@ -1041,7 +1041,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   nextIterationKey: 1
-  blockForwardIfNotWalkable: 1
   ants: 40
   iterations: 40
   alpha: 0.1
@@ -1049,7 +1048,7 @@ MonoBehaviour:
   evaporation: 0.75
   Q: 100
   tau0: 0.1
-  maxStepsFactor: 1
+  maxStepsFactor: 0.25
 --- !u!1 &1506708467
 GameObject:
   m_ObjectHideFlags: 0
@@ -1387,6 +1386,9 @@ MonoBehaviour:
   standardPath: 21
   nextStep: 62
   currentStep: 0
+  moveTime: 0.15
+  initialDelay: 0.35
+  repeatRate: 0.07
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

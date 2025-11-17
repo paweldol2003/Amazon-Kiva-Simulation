@@ -104,19 +104,18 @@ public class GridManager : MonoBehaviour
     {
         int shelfWidth = 2;
         int corridorWidth = 2;
-        List<Tile> shelfTiles = new List<Tile>();
+        List<Tile> corridorTiles = new List<Tile>();
 
-        for (int y = 0; y < length; y++)
+        for (int y = 0; y < length-1; y++)
         {
-            for (int x = 0; x < width; x++)
+            for (int x = 2; x < width-2; x++)
             {
-                bool isShelfRow =
-                    ((x / (shelfWidth + corridorWidth)) * (shelfWidth + corridorWidth) <= x) &&
-                    (x % (shelfWidth + corridorWidth) < shelfWidth);
+                int period = shelfWidth + corridorWidth;
+                bool isShelfRow = (x % period) < shelfWidth;
 
-                if (isShelfRow)
+                if (!isShelfRow)
                 {
-                    shelfTiles.Add(grid[x, y]);
+                    corridorTiles.Add(grid[x, y]);
                 }
                 else
                 {
@@ -129,30 +128,26 @@ public class GridManager : MonoBehaviour
         for (int y = 0; y < length; y += 7)
             for (int x = 0; x < width; x++)
             {
-                grid[x, y].flags &= ~(TileFlags.Shelf | TileFlags.Occupied | TileFlags.Blocked);
-                shelfTiles.Remove(grid[x, y]);
+                grid[x, y].flags &= ~(TileFlags.Shelf);
+                corridorTiles.Remove(grid[x, y]);
             }
 
         for (int y = 1; y < length; y += 7)
             for (int x = 0; x < width; x++)
             {
-                grid[x, y].flags &= ~(TileFlags.Shelf | TileFlags.Occupied | TileFlags.Blocked);
-                shelfTiles.Remove(grid[x, y]);
+                grid[x, y].flags &= ~(TileFlags.Shelf);
+                corridorTiles.Remove(grid[x, y]);
             }
 
         // Ustal flagi półek (kolor nada Tile.UpdateColor)
-        foreach (var t in shelfTiles)
+        foreach (var t in corridorTiles)
         {
             t.flags |= TileFlags.Shelf;
             // losowe zajęcie półki
             if (Random.value < startShelfOccupation)
-                t.flags |= TileFlags.Occupied;
-            else
-                t.flags &= ~TileFlags.Occupied;
-            // UWAGA: nie ruszamy rendererów – kolor ustawi się z flag przy PushColors
+                t.flags |= (TileFlags.Occupied | TileFlags.Blocked);
         }
     }
-
 
     void PlaceSpawnPoints()
     {
@@ -161,12 +156,37 @@ public class GridManager : MonoBehaviour
         {
             int x = i * spacing + spacing / 2;
             spawnPoints.Add(new Vector2Int(x, 0));
-            grid[x, 0].flags |= (TileFlags.Spawn | TileFlags.Blocked); // kolor z flag
+            grid[x, 0].flags |= (TileFlags.Spawn /*| TileFlags.Blocked*/); // kolor z flag
         }
 
         Debug.Log("Spawnpoints:");
         foreach (var s in spawnPoints)
             Debug.Log($"({s.x}, {s.y})");
+    }
+
+    public void CheckSpawnpointsOccupation(int step)
+    {
+        var robots = gm.robotManager.AllRobots;
+        foreach (var s in spawnPoints)
+        {
+            bool occupied = false;
+            foreach (var r in robots)
+            {
+                if (r.GridPos.x == s.x && r.GridPos.y == s.y)
+                {
+                    occupied = true;
+                    break;
+                }
+            }
+            //chwilowy tile
+            var tile = new Tile(s.x, s.y, width);
+            tile.flags = RTgrid[step][s.x, s.y].flags;
+            if (occupied)
+                tile.flags |= TileFlags.Blocked;
+            else
+                tile.flags &= ~TileFlags.Blocked;
+            UpdateRTgrid(step, null, tile);
+        }
     }
 
 
@@ -194,7 +214,7 @@ public class GridManager : MonoBehaviour
 
 
 
-    public void UpdateRTgrid(int step, Tile[,] gridForStep = null)
+    public void UpdateRTgrid(int step, Tile[,] gridForStep = null, Tile spawnTile = null)
     {
         if (step < 0)
         {
@@ -231,6 +251,14 @@ public class GridManager : MonoBehaviour
             }
             else if (step < RTgrid.Count)
             {
+                //nadpisanie przyszłych spawnpointów zmianą flagi
+                if (spawnTile != null)
+                {
+                    for (int i = step; i < RTgrid.Count; i++) 
+                    {
+                        RTgrid[i][spawnTile.x, spawnTile.y].flags = spawnTile.flags;
+                    }
+                }
                 // „nic się nie zmieniło” – ale jeśli chcesz, możesz nadpisać kopią poprzedniego
                 // RTgrid[step] = CloneStep(RTgrid[step]); // zwykle NO-OP
                 return;

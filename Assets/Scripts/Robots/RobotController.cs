@@ -1,21 +1,27 @@
-using System.Collections.Generic;
+ï»¿using System.Collections.Generic;
 using UnityEngine;
 
 // Alias na Twoje enuma z PathManager
 using Heading = PathManager.Heading;
 using RobotAction = PathManager.RobotAction;
 
-public enum RobotStatus { Free = 0, Busy = 1 }
+public enum RobotStatus { Free = 0, BusyWithPackage = 1,  BusyWithoutPackage = 2 }
 
 public struct RobotInstruction
 {
     public int step;
     public RobotAction action;
-    public Vector2Int pos;   // docelowa pozycja po tej akcji
-    public Heading head;     // heading po tej akcji
-    public RobotInstruction(int step, RobotAction action, Vector2Int pos, Heading head)
+    public Tile tile;  // target tile after this action
+    public Vector2Int pos;   // target grid position after this action
+    public Heading head;     // heading after this action
+
+    public RobotInstruction(int step, RobotAction action, Tile tile, Heading head)
     {
-        this.step = step; this.action = action; this.pos = pos; this.head = head;
+        this.step = step;
+        this.action = action;
+        this.tile = tile;
+        this.pos = new Vector2Int(tile.x, tile.y);
+        this.head = head;
     }
 }
 
@@ -26,20 +32,20 @@ public class RobotController : MonoBehaviour
     [SerializeField] private Heading heading = Heading.North;
     [SerializeField] private RobotStatus status = RobotStatus.Free;
     [SerializeField] private Tile hisTile;
-    //[SerializeField] private Tile spawnTile;
+    [SerializeField] private Tile spawnTile;   // <- spawn tile przypisany przy inicjalizacji
 
     [Header("Visual")]
-    [SerializeField] private float visualHeight = 0.5f; // Y robota w œwiecie
+    [SerializeField] private float visualHeight = 0.5f; // Y robota w Å›wiecie
 
     // Id (np. nadawany przez RobotManager)
     public int Id { get; private set; }
 
-    // W³aœciwoœci tylko-do-odczytu
+    // Read-only properties
     public Vector2Int GridPos => gridPos;
     public Heading Heading => heading;
     public RobotStatus Status => status;
     public Tile HisTile => hisTile;
-    //public Tile SpawnTile { get; private set; } 
+    public Tile SpawnTile => spawnTile;   // <- expose spawn tile
 
     // Plan ruchu (kolejka instrukcji)
     private readonly Queue<RobotInstruction> plan = new Queue<RobotInstruction>();
@@ -52,15 +58,21 @@ public class RobotController : MonoBehaviour
         gridPos = startPos;
         heading = startHeading;
         status = RobotStatus.Free;
+
         hisTile = startTile;
-        //spawnTile = startTile;
+        spawnTile = startTile;   // <- zapamiÄ™tujemy kafel startowy jako spawn
     }
 
     public void SetHeading(Heading h) => heading = h;
     public void SetGridPos(Vector2Int p) => gridPos = p;
     public void SetHisTile(Tile t) => hisTile = t;
 
-    public void SetBusy() => status = RobotStatus.Busy;
+    // opcjonalnie, gdybyÅ› kiedyÅ› chciaÅ‚ zmieniÄ‡ spawn z zewnÄ…trz:
+    public void SetSpawnTile(Tile t) => spawnTile = t;
+
+    public void SetBusyWithPackage() => status = RobotStatus.BusyWithPackage;
+    public void SetBusyWithoutPackage() => status = RobotStatus.BusyWithoutPackage;
+
     public void SetFree()
     {
         status = RobotStatus.Free;
@@ -71,45 +83,71 @@ public class RobotController : MonoBehaviour
     {
         plan.Clear();
         foreach (var ins in instructions) plan.Enqueue(ins);
-        status = plan.Count > 0 ? RobotStatus.Busy : RobotStatus.Free;
     }
 
     /// <summary>
-    /// Wykonuje instrukcjê przypisan¹ dok³adnie do podanego stepa.
-    /// Ustawia heading, gridPos oraz pozycjê world-space (teleport lub p³ynnie).
-    /// Zwraca true, gdy wykona³ ruch.
+    /// Executes instruction assigned exactly to the given step.
+    /// Updates heading, gridPos and world-space position.
+    /// Returns true when movement was executed.
     /// </summary>
-    public bool TryExecuteStep(int step, float cellSize, Vector2 origin, float moveTime = 0f)
+    public int TryExecuteStep(int step, float cellSize, Vector2 origin, float moveTime = 0f)
     {
         if (plan.Count == 0)
         {
-            Debug.LogWarning($"[RobotController:{name}] No plan. Status={status}, requestedStep={step}");
-            status = RobotStatus.Free;
-            return false;
+                status = RobotStatus.Free;
+                return 0;
         }
 
         var ins = plan.Peek();
         if (ins.step != step)
         {
             Debug.Log($"[RobotController:{name}] Step mismatch: requested={step}, nextPlanStep={ins.step} (action={ins.action}, pos={ins.pos}, head={ins.head})");
-            return false;
+            return 0;
         }
 
-        // zdejmij i zastosuj
+        // pop and apply
         plan.Dequeue();
         heading = ins.head;
         gridPos = ins.pos;
+        hisTile = ins.tile;
+        status = RobotStatus.BusyWithPackage;
 
         Vector3 target = GridToWorld(ins.pos, cellSize, origin, visualHeight);
-        Debug.Log($"[RobotController:{name}] EXEC step={step} -> pos={gridPos} world={target} action={ins.action} head={heading} moveTime={moveTime}");
+        Debug.Log($"[RobotController:{name}] EXEC step={step} -> pos={gridPos} action={ins.action} head={heading} moveTime={moveTime}");
+
+        if (ins.action == RobotAction.TurnLeft)
+        {
+            StartCoroutine(RotateSmooth(target, moveTime, -90));
+        }
+        else if (ins.action == RobotAction.TurnRight)
+        {
+            StartCoroutine(RotateSmooth(target, moveTime, 90));
+        }
 
         if (moveTime > 0f) StartCoroutine(MoveSmooth(target, moveTime));
         else transform.position = target;
 
-        if (plan.Count == 0) status = RobotStatus.Free;
-        return true;
-    }
+        if (plan.Count == 0)
+        {
+            bool atSpawn =
+                (hisTile != null && (hisTile.flags & TileFlags.Spawn) != 0);
+            // albo: bool atSpawn = (gridPos == spawnPos);
 
+            if (atSpawn)
+            {
+                // wrÃ³ciÅ‚ na spawn â†’ jest wolny
+                status = RobotStatus.Free;
+                return 0;  // nic nie trzeba planowaÄ‡
+            }
+            else
+            {
+                // skoÅ„czyÅ‚ misjÄ™, ale nie jest na spawnie â†’ proÅ›ba o plan powrotny
+                status = RobotStatus.BusyWithoutPackage;
+                return 2;  // Return to spawn request
+            }
+        }
+        return 1;
+    }
 
     private Vector3 GridToWorld(Vector2Int p, float cellSize, Vector2 origin, float y)
     {
@@ -130,5 +168,20 @@ public class RobotController : MonoBehaviour
             yield return null;
         }
         transform.position = target;
+    }
+
+    private System.Collections.IEnumerator RotateSmooth(Vector3 targetPos, float t, float angle)
+    {
+        Quaternion startRot = transform.rotation;
+        Quaternion endRot = startRot * Quaternion.Euler(0f, angle, 0f);
+        float elapsed = 0f;
+        while (elapsed < t)
+        {
+            elapsed += Time.deltaTime;
+            float u = Mathf.Clamp01(elapsed / t);
+            transform.rotation = Quaternion.Slerp(startRot, endRot, u);
+            yield return null;
+        }
+        transform.rotation = endRot;
     }
 }
