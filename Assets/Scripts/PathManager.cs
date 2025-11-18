@@ -33,78 +33,59 @@ public class PathManager : MonoBehaviour
         RTgrid = gm.gridManager.RTgrid;
     }
 
-    // --- Public trigger (losowy start/koniec, startuje tryb iteracyjny na klawisz) ---
-    //public void SetRandomPath(int startStep)
-    //{
-    //    if (RTgrid[startStep] == null) { Debug.LogError("Grid not initialized!"); return; }
 
-    //    var walkable = new List<Tile>();
-    //    foreach (var t in RTgrid[startStep]) if (t.Walkable) walkable.Add(t);
-    //    if (walkable.Count < 2) { Debug.LogWarning("Not enough walkable."); return; }
-
-    //    var startTile = walkable[UnityEngine.Random.Range(0, walkable.Count)];
-    //    var endTile = walkable[UnityEngine.Random.Range(0, walkable.Count)];
-    //    while (endTile == startTile) endTile = walkable[UnityEngine.Random.Range(0, walkable.Count)];
-    //    var startHead = (Heading)UnityEngine.Random.Range(0, 4); //POBRAÆ Z ROBOTA
-
-
-
-    //    acoRoutine = StartCoroutine(ACO_Interactive(startTile, endTile, startHead, startStep, path =>
-    //    {
-    //        if (path == null || path.Count == 0) return;
-
-    //        foreach (var node in path)
-    //        {
-    //            // modyfikacja kafla w danym kroku
-    //            RTgrid[node.step][node.x, node.y].flags |= TileFlags.Blocked;
-    //            RTgrid[node.step+1][node.x, node.y].flags |= TileFlags.Blocked;
-
-    //            // jeœli chcesz odmalowaæ/utrwaliæ ten step:
-    //            gm.gridManager.UpdateRTgrid(node.step, RTgrid[node.step]);
-
-    //            Debug.Log($"Step {node.step}: ({node.x},{node.y}) -> {node.action}");
-    //        }
-    //    }));
-    //}
     public void SetStandardPath(int startStep)
     {
         if (RTgrid[startStep] == null) { Debug.LogError("Grid not initialized!"); return; }
+
         RobotController robot = gm.robotManager.GetFreeRobot();
 
         var walkable = new List<Tile>();
-        foreach (var t in RTgrid[startStep]) if (t.Walkable && t.flags.HasFlag(TileFlags.Shelf)) walkable.Add(t);
+        foreach (var t in RTgrid[startStep])
+            if (t.Walkable && t.flags.HasFlag(TileFlags.Shelf)) walkable.Add(t);
+
         Tile startTile = robot.HisTile;
-        var endTile = walkable[UnityEngine.Random.Range(0, walkable.Count)];
+        Tile endTile = walkable[UnityEngine.Random.Range(0, walkable.Count)];
 
-
-        if (startTile == null || endTile == null) { Debug.LogWarning("No spawn/goal tiles."); return; }
-        var startHead = robot.Heading; 
-
-        acoRoutine = StartCoroutine(ACO_Interactive(startTile, endTile, startHead, startStep, robot, path =>
+        if (startTile == null || endTile == null)
         {
-            if (path == null || path.Count == 0)
+            Debug.LogWarning("No spawn/goal tiles.");
+            return;
+        }
+
+        var startHead = robot.Heading;
+
+        Debug.Log($"[ACO] Starting standard path for robot {robot.Id} at step {startStep}");
+
+        acoRoutine = StartCoroutine(ACO_Interactive(
+            startTile, endTile, startHead, startStep, robot, path =>
             {
-                Debug.LogWarning("No path found for robot.");
-                return;
-            }
-            for (int i = 0; i < path.Count - 1; i++)
-            {
-                var node = path[i];
-                var nxtnode = path[i + 1];
+                if (path == null || path.Count == 0)
+                {
+                    Debug.LogWarning("No path found for robot.");
+                    return;
+                }
 
-                int step = node.step;
-                if (step < 0 || step >= RTgrid.Count) continue;
+                for (int i = 0; i < path.Count - 1; i++)
+                {
+                    var node = path[i];
+                    var nxtnode = path[i + 1];
 
-                var gridStep = RTgrid[step];
-                gridStep[node.x, node.y].flags |= TileFlags.Blocked;
-                gridStep[nxtnode.x, nxtnode.y].flags |= TileFlags.Blocked;
+                    int step = node.step;
+                    if (step < 0 || step >= RTgrid.Count) continue;
 
-                gm.gridManager.UpdateRTgrid(step, gridStep);
-            }
-            gm.robotManager.AssignPlanToRobot(robot, path);
+                    var gridStep = RTgrid[step];
+                    gridStep[node.x, node.y].flags |= TileFlags.Blocked;
+                    gridStep[nxtnode.x, nxtnode.y].flags |= TileFlags.Blocked;
 
-        }));
+                    gm.gridManager.UpdateRTgrid(step, gridStep);
+                }
+
+                gm.robotManager.AssignPlanToRobot(robot, path);
+
+            }));
     }
+
     public void SetSpawnpointPath(int startStep, RobotController robot)
     {
         if (RTgrid[startStep] == null) { Debug.LogError("Grid not initialized!"); return; }
@@ -113,33 +94,38 @@ public class PathManager : MonoBehaviour
         Tile endTile = robot.SpawnTile;
         var startHead = robot.Heading;
 
-        Debug.Log($"Calculating spawnpoint path for robot {robot.Id} from ({startTile.x},{startTile.y}) to ({endTile.x},{endTile.y}) at step {startStep}");
-        acoRoutine = StartCoroutine(ACO_Interactive(startTile, endTile, startHead, startStep, robot, path =>
-        {
-            if (path == null || path.Count == 0)
+        Debug.Log($"[ACO] Starting spawnpoint path for robot {robot.Id} at step {startStep}");
+
+        acoRoutine = StartCoroutine(ACO_Interactive(
+            startTile, endTile, startHead, startStep, robot, path =>
             {
-                Debug.LogError($"No path found for robot {robot.Id} to spawnpoint.");
-                return;
-            }
-            for (int i = 0; i < path.Count - 1; i++)
-            {
-                var node = path[i];
-                var nxtnode = path[i + 1];
+                if (path == null || path.Count == 0)
+                {
+                    Debug.LogError($"No path found for robot {robot.Id} to spawnpoint.");
+                    return;
+                }
 
-                int step = node.step;
-                if (step < 0 || step >= RTgrid.Count) continue;
+                for (int i = 0; i < path.Count - 1; i++)
+                {
+                    var node = path[i];
+                    var nxtnode = path[i + 1];
 
-                var gridStep = RTgrid[step];
-                gridStep[node.x, node.y].flags |= TileFlags.Blocked;
-                gridStep[nxtnode.x, nxtnode.y].flags |= TileFlags.Blocked;
+                    int step = node.step;
+                    if (step < 0 || step >= RTgrid.Count) continue;
 
-                gm.gridManager.UpdateRTgrid(step, gridStep);
-            }
-            Debug.Log($"Assigning spawnpoint path to robot, path size: {path.Count}");
-            gm.robotManager.AssignPlanToRobot(robot, path);
+                    var gridStep = RTgrid[step];
+                    gridStep[node.x, node.y].flags |= TileFlags.Blocked;
+                    gridStep[nxtnode.x, nxtnode.y].flags |= TileFlags.Blocked;
 
-        }));
+                    gm.gridManager.UpdateRTgrid(step, gridStep);
+                }
+
+                Debug.LogWarning($"Assigning spawnpoint path to robot {robot.Id}, path size: {path.Count}");
+                gm.robotManager.AssignPlanToRobot(robot, path);
+
+            }));
     }
+
 
     // ======= MODEL STANU =======
     public struct Node : IEquatable<Node>
@@ -157,6 +143,8 @@ public class PathManager : MonoBehaviour
     // ======= ACO: tryb interaktywny (iteracja -> kolorowanie -> czekanie na klawisz) =======
     IEnumerator ACO_Interactive(Tile start, Tile goal, Heading startHead, int startStep, RobotController robot, System.Action<List<Node>> onDone)
     {
+        float t0 = Time.realtimeSinceStartup;   // <-- START pomiaru
+
         int w = RTgrid[startStep].GetLength(0), h = RTgrid[startStep].GetLength(1);
         int S = w * h * 4; // stany (x,y,heading)
         int A = 4;         // akcje
@@ -174,6 +162,8 @@ public class PathManager : MonoBehaviour
         //CA£A ITERACJA
         for (int it = 0; it < iterations; it++)
         {
+            float tIter = Time.realtimeSinceStartup;
+
             // 1) Parowanie
             for (int s = 0; s < S; s++)
                 for (int a = 0; a < A; a++)
@@ -182,20 +172,15 @@ public class PathManager : MonoBehaviour
             // 2) Mrówki
             for (int k = 0; k < ants; k++)
             {
+                float tAnt = Time.realtimeSinceStartup;
+
                 var nodes = ConstructAntPath( new Node( start.x, start.y, startHead, RobotAction.Wait, startStep), (goal.x, goal.y), tau, maxSteps, startStep);
-                //if (nodes == null)
-                //{
-                //    Debug.LogError($"Path not found in iteration: {it}, ant: {k}");
-
-                //}
-                //else
-                //{
-                //    Debug.LogWarning($"Path found in iteration: {it}, ant: {k}");
-                //}
                 if (nodes != null && (bestPath == null || nodes.Count < bestPath.Count)) bestPath = nodes;
+                if( (Time.realtimeSinceStartup - tIter) * 1000f > 100)
+                {
+                    Debug.Log($"[ACO] Ant {k} path-build took {(Time.realtimeSinceStartup - tAnt) * 1000f} ms");
+                }
             }
-
-
             // 3) Globalna depozycja na best-so-far
             if (bestPath != null && bestPath.Count > 1)
             {
@@ -212,24 +197,13 @@ public class PathManager : MonoBehaviour
                     }
                 }
             }
+            Debug.Log($"[ACO] Iter {it} took {(Time.realtimeSinceStartup - tIter) * 1000f} ms");
 
-            // 4) Wizualizacja feromonów w kanale R
-            //ColorByPheromones_R(tau, w, h);
-
-            // podbij start/goal
-            //grid[start.x, start.y].color = new Color32(200, 200, 200, 255);
-            //grid[goal.x, goal.y].color = new Color32(100, 100, 100, 255);
-
-            //gm.gridManager.RefreshAll(0); //DO ANALIZY
-
-            //// 5) Czekaj na klawisz
-            //yield return new WaitUntil(() =>
-            //{
-            //    var kb = Keyboard.current;
-            //    return kb != null;//&& kb[nextIterationKey].wasPressedThisFrame;
-            //});
         }
         acoRoutine = null;
+        float elapsed = (Time.realtimeSinceStartup - t0) * 1000f;
+        Debug.LogWarning($"[ACO Timer] ACO_Interactive for robot {robot.Id} took {elapsed:F2} ms");
+
         onDone?.Invoke(bestPath);
         yield break;
     }
@@ -305,23 +279,6 @@ public class PathManager : MonoBehaviour
             path.Add(cur);
             //Debug.Log($"Node = {cur.x}, {cur.y}, {cur.head}");
         }
-
-        // Tu dochodzisz, gdy NIE uda³o siê dojœæ do celu w maxSteps
-        //Debug.LogError($"[ACO] Nie uda³o siê dojœæ do celu ({goal.gx},{goal.gy}) w maxSteps={maxSteps}. " + $"pathLen={path.Count}, last=({cur.x},{cur.y},{cur.head}).");
-
-        // Debug fragmentu œcie¿ki – ¿eby nie zalaæ konsoli:
-        int maxLogged = 20; // ile maksymalnie wierszy wypisaæ
-        int step = Mathf.Max(1, path.Count / maxLogged); // co ile kroków logowaæ
-
-        for (int i = 0; i < path.Count; i += step)
-        {
-            var n = path[i];
-            //Debug.Log($"[ACO PATH] i={i}, step={n.step}, pos=({n.x},{n.y}), head={n.head}, action={n.action}");
-        }
-        // ostatni wêze³ (na wszelki)
-        var last = path[path.Count - 1];
-        //Debug.Log($"[ACO PATH] LAST i={path.Count - 1}, step={last.step}, pos=({last.x},{last.y}), head={last.head}, action={last.action}");
-
         return null;
     }
 
@@ -425,44 +382,4 @@ public class PathManager : MonoBehaviour
         if (fx == to.x && fy == to.y && to.head == from.head) return RobotAction.Forward;
         return (RobotAction)(-1);
     }
-
-    // ======= Wizualizacja feromonów w kanale R =======
-    //void ColorByPheromones_R(float[,] tau, int w, int h)
-    //{
-    //    // sumujemy feromony akcji Forward ze wszystkich headingów dla danego (x,y)
-    //    float[,] score = new float[w, h];
-    //    float maxScore = 1e-6f;
-
-    //    for (int y = 0; y < h; y++)
-    //        for (int x = 0; x < w; x++)
-    //        {
-    //            float s = 0f;
-    //            for (int head = 0; head < 4; head++)
-    //            {
-    //                int si = StateIndex(x, y, (Heading)head, w, h);
-    //                s += Mathf.Max(0f, tau[si, (int)RobotAction.Forward]);
-    //                // (opcjonalnie, lekkie doci¹¿enie zakrêtów)
-    //                // s += 0.3f * Mathf.Max(0f, tau[si, (int)RobotAction.TurnLeft]);
-    //                // s += 0.3f * Mathf.Max(0f, tau[si, (int)RobotAction.TurnRight]);
-    //            }
-    //            // opcjonalna log-skala dla lepszej separacji wizualnej:
-    //            // s = Mathf.Log(1f + s);
-    //            score[x, y] = s;
-    //            if (s > maxScore) maxScore = s;
-    //        }
-
-    //    // malowanie: tylko kana³ R (obstacles ciemne)
-    //    for (int y = 0; y < h; y++)
-    //        for (int x = 0; x < w; x++)
-    //        {
-    //            if (!grid[x, y].Walkable)
-    //            {
-    //                grid[x, y].color = new Color32(40, 0, 0, 255);
-    //                continue;
-    //            }
-    //            float norm = score[x, y] / maxScore; // 0..1
-    //            byte R = (byte)Mathf.RoundToInt(255f * norm);
-    //            grid[x, y].color = new Color32(R, 0, 0, 255);
-    //        }
-    //}
 }

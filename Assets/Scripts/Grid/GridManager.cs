@@ -64,7 +64,8 @@ public class GridManager : MonoBehaviour
         PlaceSpawnPoints();
 
         RTgrid = new List<Tile[,]>();
-        UpdateRTgrid(0, grid);
+        for(int i=0; i<1000; i++) UpdateRTgrid(i, grid); //INICJALIZACJA PIERWSZYCH 1000 KROKÓW
+
         //UpdateRTgrid(5000); //TEST CZY TO PRZYSPIESZY
         RefreshAll(0);
 
@@ -106,7 +107,7 @@ public class GridManager : MonoBehaviour
         int corridorWidth = 2;
         List<Tile> corridorTiles = new List<Tile>();
 
-        for (int y = 0; y < length-1; y++)
+        for (int y = 0; y < length-2; y++)
         {
             for (int x = 2; x < width-2; x++)
             {
@@ -125,14 +126,14 @@ public class GridManager : MonoBehaviour
         }
 
         // Przejścia poprzeczne (odkorkuj na korytarze)
-        for (int y = 0; y < length; y += 7)
+        for (int y = 0; y < length; y += 8)
             for (int x = 0; x < width; x++)
             {
                 grid[x, y].flags &= ~(TileFlags.Shelf);
                 corridorTiles.Remove(grid[x, y]);
             }
 
-        for (int y = 1; y < length; y += 7)
+        for (int y = 1; y < length; y += 8)
             for (int x = 0; x < width; x++)
             {
                 grid[x, y].flags &= ~(TileFlags.Shelf);
@@ -156,12 +157,14 @@ public class GridManager : MonoBehaviour
         {
             int x = i * spacing + spacing / 2;
             spawnPoints.Add(new Vector2Int(x, 0));
+            spawnPoints.Add(new Vector2Int(x, length - 1));
             grid[x, 0].flags |= (TileFlags.Spawn /*| TileFlags.Blocked*/); // kolor z flag
+            grid[x, length - 1].flags |= (TileFlags.Spawn);
         }
 
-        Debug.Log("Spawnpoints:");
-        foreach (var s in spawnPoints)
-            Debug.Log($"({s.x}, {s.y})");
+        //Debug.Log("Spawnpoints:");
+        //foreach (var s in spawnPoints)
+        //    Debug.Log($"({s.x}, {s.y})");
     }
 
     public void CheckSpawnpointsOccupation(int step)
@@ -259,6 +262,7 @@ public class GridManager : MonoBehaviour
                         RTgrid[i][spawnTile.x, spawnTile.y].flags = spawnTile.flags;
                     }
                 }
+                //else RTgrid[step] = CloneStep(RTgrid[step]);
                 // „nic się nie zmieniło” – ale jeśli chcesz, możesz nadpisać kopią poprzedniego
                 // RTgrid[step] = CloneStep(RTgrid[step]); // zwykle NO-OP
                 return;

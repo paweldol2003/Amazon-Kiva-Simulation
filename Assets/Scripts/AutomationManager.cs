@@ -84,11 +84,25 @@ public class AutomationManager : MonoBehaviour
         currentStep++;
         Debug.Log("[AutomationManager] Aktualny step: " + currentStep);
 
+        // --- UpdateRTgrid ---
+        var t0 = Time.realtimeSinceStartup;
         gm.gridManager.UpdateRTgrid(currentStep);
-        gm.robotManager.MoveAllRobots(currentStep, moveTime);
-        gm.gridManager.CheckSpawnpointsOccupation(currentStep);
-        gm.gridManager.RefreshAll(currentStep);
+        //Debug.LogWarning($"[Timer] UpdateRTgrid: {(Time.realtimeSinceStartup - t0) * 1000f} ms");
 
-        Debug.Log($"Iloœæ gridów: {RTgrid.Count}");
+        // --- MoveAllRobots ---
+        var t1 = Time.realtimeSinceStartup;
+        gm.robotManager.MoveAllRobots(currentStep, moveTime);
+        //Debug.LogWarning($"[Timer] MoveAllRobots: {(Time.realtimeSinceStartup - t1) * 1000f} ms");
+
+        // --- CheckSpawnpointsOccupation ---
+        var t2 = Time.realtimeSinceStartup;
+        gm.gridManager.CheckSpawnpointsOccupation(currentStep);
+        //Debug.LogWarning($"[Timer] CheckSpawnpointsOccupation: {(Time.realtimeSinceStartup - t2) * 1000f} ms");
+
+        // --- RefreshAll ---
+        var t3 = Time.realtimeSinceStartup;
+        gm.gridManager.RefreshAll(currentStep);
+        //Debug.LogWarning($"[Timer] RefreshAll: {(Time.realtimeSinceStartup - t3) * 1000f} ms");
+        Debug.LogWarning($"[Timer] Total step time: {(Time.realtimeSinceStartup - t0) * 1000f} ms");
     }
 }
