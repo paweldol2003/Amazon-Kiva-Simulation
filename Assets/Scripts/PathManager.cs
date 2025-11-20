@@ -25,8 +25,6 @@ public class PathManager : MonoBehaviour
     public float tau0 = 0.1f;
     public float maxStepsFactor = 0.25f; // limit kroków = maxStepsFactor * (w*h)
 
-    Coroutine acoRoutine;
-
     public void Init(GameManager gm) => this.gm = gm;
     void Start()
     {
@@ -34,96 +32,86 @@ public class PathManager : MonoBehaviour
     }
 
 
-    public void SetStandardPath(int startStep)
+    public void SetShelfPath(int startStep, RobotController robot = null)
     {
         if (RTgrid[startStep] == null) { Debug.LogError("Grid not initialized!"); return; }
 
-        RobotController robot = gm.robotManager.GetFreeRobot();
-
-        var walkable = new List<Tile>();
-        foreach (var t in RTgrid[startStep])
-            if (t.Walkable && t.flags.HasFlag(TileFlags.Shelf)) walkable.Add(t);
-
-        Tile startTile = robot.HisTile;
-        Tile endTile = walkable[UnityEngine.Random.Range(0, walkable.Count)];
-
-        if (startTile == null || endTile == null)
+        Tile startTile;
+        Heading startHead;
+        if (robot == null)
         {
-            Debug.LogWarning("No spawn/goal tiles.");
-            return;
+            robot = gm.robotManager.GetFreeRobot();
+            startTile = robot.HisTile;
+            startHead = robot.Heading;
+        }
+        else
+        {
+            startTile = robot.lastPlanElement.tile;
+            startHead = robot.lastPlanElement.head;
         }
 
-        var startHead = robot.Heading;
+        var walkableShelf = new List<Tile>();
+        foreach (var t in RTgrid[startStep]) if (t.Walkable && t.flags.HasFlag(TileFlags.Shelf)) walkableShelf.Add(t);
 
-        Debug.Log($"[ACO] Starting standard path for robot {robot.Id} at step {startStep}");
+        Tile endTile = walkableShelf[UnityEngine.Random.Range(0, walkableShelf.Count)];
 
-        acoRoutine = StartCoroutine(ACO_Interactive(
-            startTile, endTile, startHead, startStep, robot, path =>
-            {
-                if (path == null || path.Count == 0)
-                {
-                    Debug.LogWarning("No path found for robot.");
-                    return;
-                }
+        Debug.Log($"[ACO] Starting shelf path for robot {robot.Id} at step {startStep}");
 
-                for (int i = 0; i < path.Count - 1; i++)
-                {
-                    var node = path[i];
-                    var nxtnode = path[i + 1];
-
-                    int step = node.step;
-                    if (step < 0 || step >= RTgrid.Count) continue;
-
-                    var gridStep = RTgrid[step];
-                    gridStep[node.x, node.y].flags |= TileFlags.Blocked;
-                    gridStep[nxtnode.x, nxtnode.y].flags |= TileFlags.Blocked;
-
-                    gm.gridManager.UpdateRTgrid(step, gridStep);
-                }
-
-                gm.robotManager.AssignPlanToRobot(robot, path);
-
-            }));
+        ACO_Start(startTile, endTile, startHead, startStep, robot);
     }
 
     public void SetSpawnpointPath(int startStep, RobotController robot)
     {
         if (RTgrid[startStep] == null) { Debug.LogError("Grid not initialized!"); return; }
 
-        Tile startTile = robot.HisTile;
+        Tile startTile;
+        Heading startHead;
+        if (robot == null)
+        {
+            robot = gm.robotManager.GetFreeRobot();
+            startTile = robot.HisTile;
+            startHead = robot.Heading;
+        }
+        else
+        {
+            startTile = robot.lastPlanElement.tile;
+            startHead = robot.lastPlanElement.head;
+        }
+
         Tile endTile = robot.SpawnTile;
-        var startHead = robot.Heading;
 
         Debug.Log($"[ACO] Starting spawnpoint path for robot {robot.Id} at step {startStep}");
 
-        acoRoutine = StartCoroutine(ACO_Interactive(
-            startTile, endTile, startHead, startStep, robot, path =>
-            {
-                if (path == null || path.Count == 0)
-                {
-                    Debug.LogError($"No path found for robot {robot.Id} to spawnpoint.");
-                    return;
-                }
+        ACO_Start(startTile, endTile, startHead, startStep, robot);
+    }
 
-                for (int i = 0; i < path.Count - 1; i++)
-                {
-                    var node = path[i];
-                    var nxtnode = path[i + 1];
+    public void SetTransferPointPath(int startStep, RobotController robot = null, Tile targetTP = null)
+    {
+        if (RTgrid[startStep] == null) { Debug.LogError("Grid not initialized!"); return; }
 
-                    int step = node.step;
-                    if (step < 0 || step >= RTgrid.Count) continue;
-
-                    var gridStep = RTgrid[step];
-                    gridStep[node.x, node.y].flags |= TileFlags.Blocked;
-                    gridStep[nxtnode.x, nxtnode.y].flags |= TileFlags.Blocked;
-
-                    gm.gridManager.UpdateRTgrid(step, gridStep);
-                }
-
-                Debug.LogWarning($"Assigning spawnpoint path to robot {robot.Id}, path size: {path.Count}");
-                gm.robotManager.AssignPlanToRobot(robot, path);
-
-            }));
+        Tile startTile;
+        Heading startHead;
+        if (robot == null)
+        {
+            robot = gm.robotManager.GetFreeRobot();
+            startTile = robot.HisTile;
+            startHead = robot.Heading;
+        }
+        else
+        {
+            startTile = robot.lastPlanElement.tile;
+            startHead = robot.lastPlanElement.head;
+        }
+            
+        if (targetTP == null)
+        {
+            var walkableTP = new List<Tile>();
+            foreach (var t in RTgrid[startStep]) if (t.Walkable && t.flags.HasFlag(TileFlags.TransferPoint)) walkableTP.Add(t);
+            targetTP = walkableTP[UnityEngine.Random.Range(0, walkableTP.Count)];
+        }
+        Tile endTile = targetTP;
+        Debug.Log($"[ACO] Starting transferpoint path for robot {robot.Id} at step {startStep}");
+        ACO_Start(startTile, endTile, startHead, startStep, robot);
     }
 
 
@@ -140,8 +128,41 @@ public class PathManager : MonoBehaviour
         public override int GetHashCode() => (x * 73856093) ^ (y * 19349663) ^ ((int)head * 83492791);
     }
 
+
+    void ACO_Start(Tile start, Tile goal, Heading startHead, int startStep, RobotController robot)
+    {
+        //System.Action<List<Node>> onDone;
+        StartCoroutine(ACO_Coroutine(start, goal, startHead, startStep, robot, path =>
+            {
+                if (path == null || path.Count == 0)
+                {
+                    Debug.LogError($"No path found for robot {robot.Id} to point.");
+                    return;
+                }
+
+                for (int i = 0; i < path.Count - 1; i++)
+                {
+                    var node = path[i];
+                    var nxtnode = path[i + 1];
+
+                    int step = node.step;
+                    if (step < 0 || step >= RTgrid.Count) continue;
+
+                    var gridStep = RTgrid[step];
+
+                    gridStep[node.x, node.y].flags |= TileFlags.Blocked;
+                    gridStep[nxtnode.x, nxtnode.y].flags |= TileFlags.Blocked;
+
+                    gm.gridManager.UpdateRTgrid(step, gridStep);
+                }
+
+                Debug.LogWarning($"Assigning point path to robot {robot.Id}, path size: {path.Count}");
+                gm.robotManager.AssignPlanToRobot(robot, path);
+
+            }));
+    }
     // ======= ACO: tryb interaktywny (iteracja -> kolorowanie -> czekanie na klawisz) =======
-    IEnumerator ACO_Interactive(Tile start, Tile goal, Heading startHead, int startStep, RobotController robot, System.Action<List<Node>> onDone)
+    IEnumerator ACO_Coroutine(Tile start, Tile goal, Heading startHead, int startStep, RobotController robot, System.Action<List<Node>> onDone)
     {
         float t0 = Time.realtimeSinceStartup;   // <-- START pomiaru
 
@@ -157,7 +178,7 @@ public class PathManager : MonoBehaviour
 
         List<Node> bestPath = null;
         int maxSteps = (int)Mathf.Max(32, maxStepsFactor * w * h);
-        //Debug.LogWarning($"[Path Manager] maxSteps={maxSteps}");
+        Debug.LogWarning($"[Path Manager] maxSteps={maxSteps}");
 
         //CA£A ITERACJA
         for (int it = 0; it < iterations; it++)
@@ -173,13 +194,15 @@ public class PathManager : MonoBehaviour
             for (int k = 0; k < ants; k++)
             {
                 float tAnt = Time.realtimeSinceStartup;
-
-                var nodes = ConstructAntPath( new Node( start.x, start.y, startHead, RobotAction.Wait, startStep), (goal.x, goal.y), tau, maxSteps, startStep);
+                bool checktimers = (k % 5) == 0; // co pi¹ta mrówka sprawdza czas
+                var nodes = ConstructAntPath( new Node( start.x, start.y, startHead, RobotAction.Wait, startStep), (goal.x, goal.y), tau, maxSteps, startStep, checktimers);
                 if (nodes != null && (bestPath == null || nodes.Count < bestPath.Count)) bestPath = nodes;
-                if( (Time.realtimeSinceStartup - tIter) * 1000f > 100)
-                {
-                    Debug.Log($"[ACO] Ant {k} path-build took {(Time.realtimeSinceStartup - tAnt) * 1000f} ms");
-                }
+
+                if(nodes != null)
+                    Debug.Log($"[ACO] Ant {k} found path of length {nodes.Count} in iteration {it} (best so far: {bestPath.Count})");
+                else
+                    Debug.Log($"[ACO] Ant {k} found NO PATH in iteration {it})");
+
             }
             // 3) Globalna depozycja na best-so-far
             if (bestPath != null && bestPath.Count > 1)
@@ -200,7 +223,6 @@ public class PathManager : MonoBehaviour
             Debug.Log($"[ACO] Iter {it} took {(Time.realtimeSinceStartup - tIter) * 1000f} ms");
 
         }
-        acoRoutine = null;
         float elapsed = (Time.realtimeSinceStartup - t0) * 1000f;
         Debug.LogWarning($"[ACO Timer] ACO_Interactive for robot {robot.Id} took {elapsed:F2} ms");
 
@@ -209,31 +231,47 @@ public class PathManager : MonoBehaviour
     }
 
     // ======= Pojedyncza mrówka =======
-    List<Node> ConstructAntPath(Node start, (int gx, int gy) goal, float[,] tau, int maxSteps, int startStep)
+    List<Node> ConstructAntPath(
+                                Node start,
+                                (int gx, int gy) goal,
+                                float[,] tau,
+                                int maxSteps,
+                                int startStep,
+                                bool checktimers)
     {
         int w = RTgrid[startStep].GetLength(0), h = RTgrid[startStep].GetLength(1);
         var path = new List<Node>(64) { start };
 
         Node cur = start;
 
+        float antStart = 0f;
+        if (checktimers)
+            antStart = Time.realtimeSinceStartup;
+
         for (int s = startStep; s < (maxSteps + startStep); s++)
         {
-            if (cur.x == goal.gx && cur.y == goal.gy) return path;
-
-            var actions = AvailableActions(cur);
-            if (actions.Count == 0)
+            if (cur.x == goal.gx && cur.y == goal.gy)
             {
-                Debug.LogWarning($"[ACO] Brak akcji z ({cur.x},{cur.y},{cur.head}) na s={s}, przed osi¹gniêciem celu ({goal.gx},{goal.gy}).");
-                return null;
+                if (checktimers)
+                {
+                    float antTime = (Time.realtimeSinceStartup - antStart) * 1000f;
+                    Debug.Log($"[CAP] Ant return path, total time: {antTime:F3} ms, step: {s}");
+                }
+                return path;
             }
 
+            float stepStart = 0f;
+            if (checktimers)
+                stepStart = Time.realtimeSinceStartup;
+
+            var actions = AvailableActions(cur);
             int si = StateIndex(cur.x, cur.y, cur.head, w, h);
             float sum = 0f;
 
             var weights = new float[actions.Count];
             var nexts = new Node[actions.Count];
 
-            gm.gridManager.UpdateRTgrid(s + 1); // upewnij siê, ¿e jest grid na nastêpny krok
+            gm.gridManager.UpdateRTgrid(s + 1);
 
             for (int i = 0; i < actions.Count; i++)
             {
@@ -246,19 +284,12 @@ public class PathManager : MonoBehaviour
                 }
 
                 float tau_ = Mathf.Max(1e-6f, tau[si, (int)a]);
-                float eta = HeuristicDesirability(cur, nxt, goal); // >0
+                float eta = HeuristicDesirability(cur, nxt, goal);
                 float wgt = Mathf.Pow(tau_, alpha) * Mathf.Pow(eta, beta);
 
                 weights[i] = wgt;
                 nexts[i] = nxt;
                 sum += wgt;
-            }
-
-            if (sum <= 0f)
-            {
-                // wszystkie wagi 0 -> nic sensownego
-                Debug.LogWarning($"[ACO] sum==0 dla ({cur.x},{cur.y},{cur.head}) na s={s}, brak sensownego ruchu w stronê ({goal.gx},{goal.gy}).");
-                return null;
             }
 
             // ruletka
@@ -277,10 +308,24 @@ public class PathManager : MonoBehaviour
 
             cur = nexts[chosen];
             path.Add(cur);
-            //Debug.Log($"Node = {cur.x}, {cur.y}, {cur.head}");
+
+            if (checktimers)
+            {
+                float stepTime = (Time.realtimeSinceStartup - stepStart) * 1000f;
+                if (stepTime > 0.1f) // nie spamuj dla mikro wartoœci
+                    Debug.Log($"[CAP] LONG STEP Step {s - startStep}: {stepTime:F3} ms");
+            }
         }
+
+        if (checktimers)
+        {
+            float antTime = (Time.realtimeSinceStartup - antStart) * 1000f;
+            //Debug.Log($"[CAP] Ant ended (no path) total time: {antTime:F3} ms");
+        }
+
         return null;
     }
+
 
 
     // ======= Akcje / przejœcia =======

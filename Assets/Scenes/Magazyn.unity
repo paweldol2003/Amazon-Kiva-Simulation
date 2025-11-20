@@ -375,6 +375,9 @@ MonoBehaviour:
     goal:
       serializedVersion: 2
       rgba: 4278244095
+    transferpoint:
+      serializedVersion: 2
+      rgba: 1694433407
   cellSize: 1
   origin: {x: 0, y: 0}
   tileMaterial: {fileID: 2100000, guid: 93e094922856f55499e522c32dcb121e, type: 2}
@@ -1048,7 +1051,7 @@ MonoBehaviour:
   evaporation: 0.75
   Q: 100
   tau0: 0.1
-  maxStepsFactor: 0.25
+  maxStepsFactor: 0.1
 --- !u!1 &1506708467
 GameObject:
   m_ObjectHideFlags: 0
@@ -1384,6 +1387,7 @@ MonoBehaviour:
   modeSwitch: 27
   randomPath: 20
   standardPath: 21
+  standardCyclePath: 24
   nextStep: 62
   currentStep: 0
   moveTime: 0.15

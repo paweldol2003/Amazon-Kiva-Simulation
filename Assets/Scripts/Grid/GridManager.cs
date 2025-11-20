@@ -62,9 +62,10 @@ public class GridManager : MonoBehaviour
 
         SetupShelvesAndCorridors();
         PlaceSpawnPoints();
+        PlaceTransferPoints();
 
         RTgrid = new List<Tile[,]>();
-        for(int i=0; i<1000; i++) UpdateRTgrid(i, grid); //INICJALIZACJA PIERWSZYCH 1000 KROKÓW
+        for(int i=0; i<2000; i++) UpdateRTgrid(i, grid); //INICJALIZACJA PIERWSZYCH 2000 KROKÓW
 
         //UpdateRTgrid(5000); //TEST CZY TO PRZYSPIESZY
         RefreshAll(0);
@@ -165,6 +166,19 @@ public class GridManager : MonoBehaviour
         //Debug.Log("Spawnpoints:");
         //foreach (var s in spawnPoints)
         //    Debug.Log($"({s.x}, {s.y})");
+    }
+
+    void PlaceTransferPoints()
+    {
+        int spacing = length / 8;
+        for (int i = 0; i < 9; i++)
+        {
+            int y = i * spacing + spacing / 2;
+            spawnPoints.Add(new Vector2Int(0, y));
+            spawnPoints.Add(new Vector2Int(width - 1, y));
+            grid[0, y].flags |= (TileFlags.TransferPoint /*| TileFlags.Blocked*/); // kolor z flag
+            grid[width - 1, y].flags |= (TileFlags.TransferPoint);
+        }
     }
 
     public void CheckSpawnpointsOccupation(int step)

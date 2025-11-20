@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using NUnit.Framework;
+using System.Collections.Generic;
 using UnityEngine;
 
 // Alias na Twoje enuma z PathManager
@@ -6,6 +7,8 @@ using Heading = PathManager.Heading;
 using RobotAction = PathManager.RobotAction;
 
 public enum RobotStatus { Free = 0, BusyWithPackage = 1,  BusyWithoutPackage = 2 }
+public enum  RobotDestination {Free = 0, ToSpawn = 1, ToShelf = 2, ToTP = 3}
+
 
 public struct RobotInstruction
 {
@@ -46,10 +49,31 @@ public class RobotController : MonoBehaviour
     public RobotStatus Status => status;
     public Tile HisTile => hisTile;
     public Tile SpawnTile => spawnTile;   // <- expose spawn tile
+    public int CurrentStep { get; private set; } = 0;
 
     // Plan ruchu (kolejka instrukcji)
-    private readonly Queue<RobotInstruction> plan = new Queue<RobotInstruction>();
+    public readonly Queue<RobotInstruction> plan = new Queue<RobotInstruction>();
+
+    public Queue<RobotDestination> destinations = new Queue<RobotDestination>();
     public bool HasPlan => plan.Count > 0;
+
+    public RobotInstruction lastPlanElement
+    {
+        get
+        {
+            RobotInstruction last;
+            if (plan.Count == 0)
+            {
+                last = new RobotInstruction(CurrentStep, RobotAction.Wait, hisTile, heading);
+                return last;
+            }
+            last = default;
+            foreach (var ins in plan)
+                last = ins;
+            return last;
+
+        }
+    }
 
     // --- API ---
     public void Init(int id, Vector2Int startPos, Heading startHeading, Tile startTile)
@@ -58,6 +82,7 @@ public class RobotController : MonoBehaviour
         gridPos = startPos;
         heading = startHeading;
         status = RobotStatus.Free;
+        //lastPlanElement = new RobotInstruction();
 
         hisTile = startTile;
         spawnTile = startTile;   // <- zapamiętujemy kafel startowy jako spawn
@@ -73,6 +98,8 @@ public class RobotController : MonoBehaviour
     public void SetBusyWithPackage() => status = RobotStatus.BusyWithPackage;
     public void SetBusyWithoutPackage() => status = RobotStatus.BusyWithoutPackage;
 
+
+
     public void SetFree()
     {
         status = RobotStatus.Free;
@@ -84,6 +111,10 @@ public class RobotController : MonoBehaviour
         plan.Clear();
         foreach (var ins in instructions) plan.Enqueue(ins);
     }
+    public void AssignDestination(RobotDestination dest)
+    {
+        destinations.Enqueue(dest);
+    }
 
     /// <summary>
     /// Executes instruction assigned exactly to the given step.
@@ -94,14 +125,18 @@ public class RobotController : MonoBehaviour
     {
         if (plan.Count == 0)
         {
-                status = RobotStatus.Free;
-                return 0;
+            status = RobotStatus.Free;
+            CurrentStep = step;  // <--- dodaj to
+
+            return 0;
         }
 
         var ins = plan.Peek();
         if (ins.step != step)
         {
             Debug.Log($"[RobotController:{name}] Step mismatch: requested={step}, nextPlanStep={ins.step} (action={ins.action}, pos={ins.pos}, head={ins.head})");
+
+            CurrentStep = step;  // <--- dodaj to
             return 0;
         }
 
@@ -146,6 +181,8 @@ public class RobotController : MonoBehaviour
                 return 2;  // Return to spawn request
             }
         }
+        CurrentStep = step;  
+
         return 1;
     }
 

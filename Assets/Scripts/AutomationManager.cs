@@ -11,6 +11,7 @@ public class AutomationManager : MonoBehaviour
     public Key modeSwitch = Key.M;
     public Key randomPath = Key.F;
     public Key standardPath = Key.G;
+    public Key standardCyclePath = Key.J;
     public Key nextStep = Key.RightArrow;
 
     public int currentStep = 0;
@@ -39,9 +40,17 @@ public class AutomationManager : MonoBehaviour
         // --- G: œcie¿ka standardowa (jeden strza³) ---
         if (kb[standardPath].wasPressedThisFrame)
         {
-            gm.pathManager.SetStandardPath(currentStep);
+            gm.pathManager.SetShelfPath(currentStep);
             gm.robotManager.MoveAllRobots(currentStep, moveTime);
         }
+
+        // --- J: jedna marszruta losowa  ---
+        if (kb[standardCyclePath].wasPressedThisFrame)
+        {
+            gm.robotManager.SetStandardCyclePath(currentStep);
+            gm.robotManager.MoveAllRobots(currentStep, moveTime);
+        }
+
 
         /// --- Auto-repeat dla nextStep (RightArrow) ---
         var keyNext = kb[nextStep];
@@ -103,6 +112,6 @@ public class AutomationManager : MonoBehaviour
         var t3 = Time.realtimeSinceStartup;
         gm.gridManager.RefreshAll(currentStep);
         //Debug.LogWarning($"[Timer] RefreshAll: {(Time.realtimeSinceStartup - t3) * 1000f} ms");
-        Debug.LogWarning($"[Timer] Total step time: {(Time.realtimeSinceStartup - t0) * 1000f} ms");
+        Debug.LogWarning($"[AutoMan] Total step time: {(Time.realtimeSinceStartup - t0) * 1000f} ms");
     }
 }

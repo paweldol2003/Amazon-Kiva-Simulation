@@ -5,6 +5,7 @@ using UnityEngine;
 using Heading = PathManager.Heading;
 using RobotAction = PathManager.RobotAction;
 
+
 public class RobotManager : MonoBehaviour
 {
     private GameManager gm;
@@ -59,8 +60,29 @@ public class RobotManager : MonoBehaviour
     // --- Public API ---
     public RobotController GetFreeRobot()
     {
+        // zlicz ile robotów jest wolnych
+        int freeCount = 0;
         for (int i = 0; i < robots.Count; i++)
-            if (robots[i] && robots[i].Status == RobotStatus.Free) return robots[i];
+            if (robots[i] != null && robots[i].Status == RobotStatus.Free)
+                freeCount++;
+
+        if (freeCount == 0)
+            return null;
+
+        // losujemy indeks wœród WOLNYCH robotów
+        int target = UnityEngine.Random.Range(0, freeCount);
+
+        // drugi przebieg — zwracamy tego losowego
+        for (int i = 0; i < robots.Count; i++)
+        {
+            if (robots[i] != null && robots[i].Status == RobotStatus.Free)
+            {
+                if (target == 0)
+                    return robots[i];
+                target--;
+            }
+        }
+
         return null;
     }
 
@@ -86,6 +108,27 @@ public class RobotManager : MonoBehaviour
         Debug.Log($"[RobotManager] Wgrano plan ({list.Count}) do {robot.name}.");
     }
 
+
+    public void SetStandardCyclePath(int currentStep)
+    {
+        RobotController robot = gm.robotManager.GetFreeRobot();
+        robot.AssignDestination(RobotDestination.ToShelf);
+        robot.AssignDestination(RobotDestination.ToTP);
+        robot.AssignDestination(RobotDestination.ToShelf);
+        robot.AssignDestination(RobotDestination.ToSpawn);
+    }
+    public void SetShelfPath(int currentStep)
+    {
+        RobotController robot = gm.robotManager.GetFreeRobot();
+        robot.AssignDestination(RobotDestination.ToShelf);
+        robot.AssignDestination(RobotDestination.ToSpawn);
+    }
+    public void SetTransferPointPath(int currentStep)
+    {
+        RobotController robot = gm.robotManager.GetFreeRobot();
+        robot.AssignDestination(RobotDestination.ToTP);
+        robot.AssignDestination(RobotDestination.ToSpawn);
+    }
     /// <summary>
     /// Uruchamia wykonanie instrukcji zaplanowanych na dany step (dla wszystkich robotów).
     /// </summary>
@@ -95,38 +138,39 @@ public class RobotManager : MonoBehaviour
         Vector2 org = gm.gridManager.origin;
         float t = moveTimeOverride ?? defaultMoveTime;
 
-        for (int i = 0; i < robots.Count; i++)
+        foreach (var robot in robots)
         {
-            if (robots[i])
+            var result = robot.TryExecuteStep(step, cs, org, t);
+
+        }
+        List < RobotController > randrobots = new List<RobotController>(robots);
+        while (randrobots.Count > 0)
+        {
+            var rndrbt = randrobots[UnityEngine.Random.Range(0, randrobots.Count)];
+            randrobots.Remove(rndrbt);
+            //Przypisanie nowego zadania w zale¿noœci od statusu robota
+            if (rndrbt.destinations.TryPeek(out var dest))
             {
-                var result = robots[i].TryExecuteStep(step, cs, org, t);
-                if (robots[i].Status == RobotStatus.BusyWithoutPackage)
+                var lastPos = rndrbt.lastPlanElement;
+                rndrbt.destinations.Dequeue();
+                int startStep = lastPos.step + 1;
+
+                if (dest == RobotDestination.ToSpawn)
                 {
-                    gm.pathManager.SetSpawnpointPath(step+1, robots[i]);
+                    gm.pathManager.SetSpawnpointPath(startStep, rndrbt);
                 }
+                else if (dest == RobotDestination.ToTP)
+                {
+                    gm.pathManager.SetTransferPointPath(startStep, rndrbt);
+                }
+                else if (dest == RobotDestination.ToShelf)
+                {
+                    gm.pathManager.SetShelfPath(startStep, rndrbt);
+                }
+                return;
             }
         }
-    }
 
-    /// <summary>
-    /// (opcjonalne) Wymusza pojedynczy krok „co mam w kolejce” dla wszystkich zajêtych robotów.
-    /// </summary>
-    public void StepAllRobotsInstant()
-    {
-        float cs = gm.gridManager.cellSize;
-        Vector2 org = gm.gridManager.origin;
-
-        for (int i = 0; i < robots.Count; i++)
-        {
-            var r = robots[i];
-            if (r && r.HasPlan)
-            {
-                // Odczyt top step-a bez jego zdjêcia (jeœli chcesz strict-step, korzystaj z AdvanceRobotsAtStep)
-                // Tu robimy po prostu „nastêpny” — teleport:
-                // Brak publicznego podgl¹du kolejki -> w praktyce korzystaj z AdvanceRobotsAtStep(...)
-                // Zostawiam jako placeholder API.
-            }
-        }
     }
 
     public void OnRobotClicked(GameObject robotGO)
