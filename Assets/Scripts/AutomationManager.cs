@@ -40,14 +40,14 @@ public class AutomationManager : MonoBehaviour
         // --- G: œcie¿ka standardowa (jeden strza³) ---
         if (kb[standardPath].wasPressedThisFrame)
         {
-            gm.pathManager.SetShelfPath(currentStep);
+            gm.robotManager.AssignShelfPath(currentStep);
             gm.robotManager.MoveAllRobots(currentStep, moveTime);
         }
 
         // --- J: jedna marszruta losowa  ---
         if (kb[standardCyclePath].wasPressedThisFrame)
         {
-            gm.robotManager.SetStandardCyclePath(currentStep);
+            gm.robotManager.AssignStandardCyclePath(currentStep);
             gm.robotManager.MoveAllRobots(currentStep, moveTime);
         }
 

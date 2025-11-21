@@ -108,12 +108,13 @@ public class RobotController : MonoBehaviour
 
     public void AssignPlan(IEnumerable<RobotInstruction> instructions)
     {
-        plan.Clear();
+        //plan.Clear();
         foreach (var ins in instructions) plan.Enqueue(ins);
     }
     public void AssignDestination(RobotDestination dest)
     {
         destinations.Enqueue(dest);
+        Debug.Log($"[RobotController:{name}] Assigned destination: {dest}");
     }
 
     /// <summary>
@@ -149,6 +150,8 @@ public class RobotController : MonoBehaviour
 
         Vector3 target = GridToWorld(ins.pos, cellSize, origin, visualHeight);
         Debug.Log($"[RobotController:{name}] EXEC step={step} -> pos={gridPos} action={ins.action} head={heading} moveTime={moveTime}");
+        Debug.Log($"[RobotController:{name}] last plan element: step-{lastPlanElement.step}, tile-{lastPlanElement.pos}");
+        Debug.Log($"[RobotController:{name}] destinations: {(destinations.Count > 0 ? destinations.Peek().ToString() : "EMPTY")}");
 
         if (ins.action == RobotAction.TurnLeft)
         {

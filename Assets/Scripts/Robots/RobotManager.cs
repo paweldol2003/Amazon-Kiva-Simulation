@@ -109,7 +109,7 @@ public class RobotManager : MonoBehaviour
     }
 
 
-    public void SetStandardCyclePath(int currentStep)
+    public void AssignStandardCyclePath(int currentStep)
     {
         RobotController robot = gm.robotManager.GetFreeRobot();
         robot.AssignDestination(RobotDestination.ToShelf);
@@ -117,13 +117,13 @@ public class RobotManager : MonoBehaviour
         robot.AssignDestination(RobotDestination.ToShelf);
         robot.AssignDestination(RobotDestination.ToSpawn);
     }
-    public void SetShelfPath(int currentStep)
+    public void AssignShelfPath(int currentStep)
     {
         RobotController robot = gm.robotManager.GetFreeRobot();
         robot.AssignDestination(RobotDestination.ToShelf);
         robot.AssignDestination(RobotDestination.ToSpawn);
     }
-    public void SetTransferPointPath(int currentStep)
+    public void AssignTransferPointPath(int currentStep)
     {
         RobotController robot = gm.robotManager.GetFreeRobot();
         robot.AssignDestination(RobotDestination.ToTP);
@@ -152,9 +152,8 @@ public class RobotManager : MonoBehaviour
             if (rndrbt.destinations.TryPeek(out var dest))
             {
                 var lastPos = rndrbt.lastPlanElement;
-                rndrbt.destinations.Dequeue();
+                //rndrbt.destinations.Dequeue();
                 int startStep = lastPos.step + 1;
-
                 if (dest == RobotDestination.ToSpawn)
                 {
                     gm.pathManager.SetSpawnpointPath(startStep, rndrbt);

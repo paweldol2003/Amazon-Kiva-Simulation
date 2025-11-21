@@ -34,7 +34,7 @@ public class PathManager : MonoBehaviour
 
     public void SetShelfPath(int startStep, RobotController robot = null)
     {
-        if (RTgrid[startStep] == null) { Debug.LogError("Grid not initialized!"); return; }
+        if (RTgrid[startStep] == null) { Debug.LogError("Grid not initialized!"); return ; }
 
         Tile startTile;
         Heading startHead;
@@ -57,12 +57,12 @@ public class PathManager : MonoBehaviour
 
         Debug.Log($"[ACO] Starting shelf path for robot {robot.Id} at step {startStep}");
 
-        ACO_Start(startTile, endTile, startHead, startStep, robot);
+         ACO_Start(startTile, endTile, startHead, startStep, robot);
     }
 
     public void SetSpawnpointPath(int startStep, RobotController robot)
     {
-        if (RTgrid[startStep] == null) { Debug.LogError("Grid not initialized!"); return; }
+        if (RTgrid[startStep] == null) { Debug.LogError("Grid not initialized!"); return ; }
 
         Tile startTile;
         Heading startHead;
@@ -82,12 +82,12 @@ public class PathManager : MonoBehaviour
 
         Debug.Log($"[ACO] Starting spawnpoint path for robot {robot.Id} at step {startStep}");
 
-        ACO_Start(startTile, endTile, startHead, startStep, robot);
+         ACO_Start(startTile, endTile, startHead, startStep, robot);
     }
 
     public void SetTransferPointPath(int startStep, RobotController robot = null, Tile targetTP = null)
     {
-        if (RTgrid[startStep] == null) { Debug.LogError("Grid not initialized!"); return; }
+        if (RTgrid[startStep] == null) { Debug.LogError("Grid not initialized!"); return ; }
 
         Tile startTile;
         Heading startHead;
@@ -158,6 +158,7 @@ public class PathManager : MonoBehaviour
 
                 Debug.LogWarning($"Assigning point path to robot {robot.Id}, path size: {path.Count}");
                 gm.robotManager.AssignPlanToRobot(robot, path);
+                robot.destinations.Dequeue();
 
             }));
     }
@@ -198,10 +199,8 @@ public class PathManager : MonoBehaviour
                 var nodes = ConstructAntPath( new Node( start.x, start.y, startHead, RobotAction.Wait, startStep), (goal.x, goal.y), tau, maxSteps, startStep, checktimers);
                 if (nodes != null && (bestPath == null || nodes.Count < bestPath.Count)) bestPath = nodes;
 
-                if(nodes != null)
-                    Debug.Log($"[ACO] Ant {k} found path of length {nodes.Count} in iteration {it} (best so far: {bestPath.Count})");
-                else
-                    Debug.Log($"[ACO] Ant {k} found NO PATH in iteration {it})");
+                //if(nodes != null) Debug.Log($"[ACO] Ant {k} found path of length {nodes.Count} in iteration {it} (best so far: {bestPath.Count})");
+                //else Debug.Log($"[ACO] Ant {k} found NO PATH in iteration {it})");
 
             }
             // 3) Globalna depozycja na best-so-far
@@ -312,8 +311,7 @@ public class PathManager : MonoBehaviour
             if (checktimers)
             {
                 float stepTime = (Time.realtimeSinceStartup - stepStart) * 1000f;
-                if (stepTime > 0.1f) // nie spamuj dla mikro wartoœci
-                    Debug.Log($"[CAP] LONG STEP Step {s - startStep}: {stepTime:F3} ms");
+                //if (stepTime > 0.1f) Debug.Log($"[CAP] LONG STEP Step {s - startStep}: {stepTime:F3} ms");
             }
         }
 
