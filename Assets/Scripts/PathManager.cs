@@ -68,12 +68,12 @@ public partial class PathManager : MonoBehaviour
                 Firefly_Start(startTile, endTile, startHead, startStep, robot);
                 break;
             case AlgorithmMode.ThirdAlgo:
-                //ThirdAlgo_Start(startTile, endTile, startHead, startStep, robot);
+                Bacteria_Start(startTile, endTile, startHead, startStep, robot);
                 break;
             case AlgorithmMode.All:
                 ACO_Start(startTile, endTile, startHead, startStep, robot);
                 Firefly_Start(startTile, endTile, startHead, startStep, robot);
-                //ThirdAlgo_Start(startTile, endTile, startHead, startStep, robot);
+                Bacteria_Start(startTile, endTile, startHead, startStep, robot);
                 break;
         }
 
@@ -110,12 +110,12 @@ public partial class PathManager : MonoBehaviour
                 Firefly_Start(startTile, endTile, startHead, startStep, robot);
                 break;
             case AlgorithmMode.ThirdAlgo:
-                //ThirdAlgo_Start(startTile, endTile, startHead, startStep, robot);
+                Bacteria_Start(startTile, endTile, startHead, startStep, robot);
                 break;
             case AlgorithmMode.All:
                 ACO_Start(startTile, endTile, startHead, startStep, robot);
                 Firefly_Start(startTile, endTile, startHead, startStep, robot);
-                //ThirdAlgo_Start(startTile, endTile, startHead, startStep, robot);
+                Bacteria_Start(startTile, endTile, startHead, startStep, robot);
                 break;
         }
              //ACO_Start(startTile, endTile, startHead, startStep, robot);
@@ -156,12 +156,12 @@ public partial class PathManager : MonoBehaviour
                 Firefly_Start(startTile, endTile, startHead, startStep, robot);
                 break;
             case AlgorithmMode.ThirdAlgo:
-                //ThirdAlgo_Start(startTile, endTile, startHead, startStep, robot);
+                Bacteria_Start(startTile, endTile, startHead, startStep, robot);
                 break;
             case AlgorithmMode.All:
                 ACO_Start(startTile, endTile, startHead, startStep, robot);
                 Firefly_Start(startTile, endTile, startHead, startStep, robot);
-                //ThirdAlgo_Start(startTile, endTile, startHead, startStep, robot);
+                Bacteria_Start(startTile, endTile, startHead, startStep, robot);
                 break;
         }
         //ACO_Start(startTile, endTile, startHead, startStep, robot);
