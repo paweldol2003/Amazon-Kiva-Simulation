@@ -159,7 +159,7 @@ public partial class PathManager : MonoBehaviour
             for (int i = 0; i < actions.Count; i++)
             {
                 var a = actions[i];
-                var (nxt, allowed) = Apply(cur, a, w, h);
+                var (nxt, allowed) = Apply(cur, a);
                 if (!allowed)
                 {
                     weights[i] = 0f;

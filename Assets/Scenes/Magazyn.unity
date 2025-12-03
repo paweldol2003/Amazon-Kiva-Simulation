@@ -378,6 +378,12 @@ MonoBehaviour:
     transferpoint:
       serializedVersion: 2
       rgba: 1694433407
+    algPath:
+      serializedVersion: 2
+      rgba: 4278190335
+    bestAlgPath:
+      serializedVersion: 2
+      rgba: 4278245375
   cellSize: 1
   origin: {x: 0, y: 0}
   tileMaterial: {fileID: 2100000, guid: 93e094922856f55499e522c32dcb121e, type: 2}
@@ -1051,13 +1057,21 @@ MonoBehaviour:
   Q: 100
   tau0: 0.1
   maxStepsFactor: 0.1
+  bacterias: 40
+  maxSwimmingSteps: 6
+  maxChemotaxisSteps: 30
+  reproductionIterations: 40
+  dispersalProbability: 0.2
+  dispersalCycles: 3
   fireflies: 40
   fireiterations: 60
   firealpha: 1
+  particles: 10
+  maxParticlesSteps: 300
   nextIterationKey: 1
   switchToThirdAlgo: 30
   switchToACO: 29
-  switchToFirefly: 23
+  switchToPSO: 23
   switchToAll: 35
 --- !u!1 &1506708467
 GameObject:

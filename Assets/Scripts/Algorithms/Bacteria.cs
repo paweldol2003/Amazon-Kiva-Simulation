@@ -8,225 +8,277 @@ public partial class PathManager : MonoBehaviour
     [Header("Bacteria")]
     public int bacterias = 40;
     public int maxSwimmingSteps = 6;
-    public int maxChemotaxisSteps = 40;
-    public int reproductioniterations = 60;
-   // [Range(0.1f, 5f)] public float firealpha = 1.0f;     // waga feromonów
+    public int maxChemotaxisSteps = 30;
+    public int reproductionIterations = 40;
+    public float dispersalProbability = 0.2f;
+    public int dispersalCycles = 3;
 
-
+    // ============================================================
+    // ENTRY POINT
+    // ============================================================
     void Bacteria_Start(Tile start, Tile goal, Heading startHead, int startStep, RobotController robot)
     {
+        Debug.Log($"[BFOA] Starting bacterial optimization for robot {robot.Id}");
+
         StartCoroutine(Bacteria_Coroutine(start, goal, startHead, startStep, robot, path =>
         {
             if (path == null || path.Count == 0)
             {
-                Debug.LogError($"No path found for robot {robot.Id} to point.");
+                Debug.LogError($"[BFOA] Failed to find ANY path for robot {robot.Id}");
                 return;
             }
 
+            Debug.Log($"[BFOA] Path found for robot {robot.Id}, length={path.Count}");
+
             for (int i = 0; i < path.Count - 1; i++)
             {
-                var node = path[i];
-                var nxtnode = path[i + 1];
+                var a = path[i];
+                var b = path[i + 1];
 
-                int step = node.step;
-                if (step < 0 || step >= RTgrid.Count) continue;
-
-                var gridStep = RTgrid[step];
-
-                gridStep[node.x, node.y].flags |= TileFlags.Blocked;
-                gridStep[nxtnode.x, nxtnode.y].flags |= TileFlags.Blocked;
-
-                gm.gridManager.UpdateRTgrid(step, gridStep);
+                if (a.step >= 0 && a.step < RTgrid.Count)
+                {
+                    RTgrid[a.step][a.x, a.y].flags |= TileFlags.Blocked;
+                    RTgrid[a.step][b.x, b.y].flags |= TileFlags.Blocked;
+                    gm.gridManager.UpdateRTgrid(a.step, RTgrid[a.step]);
+                }
             }
 
-            Debug.LogWarning($"Assigning point path to robot {robot.Id}, path size: {path.Count}");
             gm.robotManager.AssignPlanToRobot(robot, path);
             robot.destinations.Dequeue();
-
         }));
     }
 
-    IEnumerator Bacteria_Coroutine( Tile start,
-                                    Tile goal,
-                                    Heading startHead,
-                                    int startStep,
-                                    RobotController robot,
-                                    Action<List<Node>> onDone)
+    // ============================================================
+    // MAIN BFOA LOOP
+    // ============================================================
+    IEnumerator Bacteria_Coroutine(Tile start, Tile goal, Heading startHead, int startStep,
+                                   RobotController robot, Action<List<Node>> onDone)
     {
         float t0 = Time.realtimeSinceStartup;
 
         int w = RTgrid[startStep].GetLength(0);
         int h = RTgrid[startStep].GetLength(1);
 
-        // ======== Parametry BFOA ========
-        int population = bacterias;
-        int Nc = maxChemotaxisSteps;      // liczba kroków chemotaksji
-        int Ns = maxSwimmingSteps;        // maksymalna d³ugoœæ swim
-        int Nre = reproductioniterations; // ile cykli reprodukcji
-        float Ped = 0.2f;                 // szansa dyspersji (teleportu)
-        int Ned = 4;                      // cykle dyspersji
+        Debug.Log($"[BFOA] Creating initial population of {bacterias} bacteria");
 
-        List<PathCandidate> bacteria = new List<PathCandidate>(population);
+        List<PathCandidate> population = new List<PathCandidate>(bacterias);
 
-        // ======== Inicjalizacja populacji losowych tras ========
-        for (int i = 0; i < population; i++)
-            bacteria.Add(RandomPath(start, goal, startHead, startStep, w, h));
+        for (int i = 0; i < bacterias; i++)
+            population.Add(ThreeStepStart(start, startHead, startStep, w, h, goal));
 
-        PathCandidate bestGlobal = null;
+        PathCandidate best = null;
 
-        // ======== DYSPERSJA CYKLAMI ========
-        for (int ed = 0; ed < Ned; ed++)
+        for (int ed = 0; ed < dispersalCycles; ed++)
         {
-            // ======== REPRODUKCJA CYKLAMI ========
-            for (int re = 0; re < Nre; re++)
+            Debug.Log($"[BFOA] Dispersal cycle {ed + 1}/{dispersalCycles}");
+
+            for (int re = 0; re < reproductionIterations; re++)
             {
-                // ======== CHEMOTAKSJA ========
-                for (int i = 0; i < population; i++)
+                Debug.Log($"[BFOA]  Reproduction cycle {re + 1}/{reproductionIterations}");
+
+                for (int i = 0; i < bacterias; i++)
                 {
-                    PathCandidate current = bacteria[i];
-                    float lastCost = current.cost;
+                    var current = population[i];
+                    float bestScore = current.cost;
 
-                    // chemotaksja: tumble + swim
-                    for (int c = 0; c < Nc; c++)
+                    for (int c = 0; c < maxChemotaxisSteps; c++)
                     {
-                        var tumble = Mutate(current, (goal.x, goal.y));
+                        var tumble = DoTumble(current, goal);
 
-                        if (tumble.cost < lastCost)
+                        Debug.Log($"[BFOA]   Tumble: oldScore={bestScore:F3}, newScore={tumble.cost:F3}");
+
+                        if (tumble.cost > bestScore)
                         {
+                            Debug.Log("[BFOA]    Tumble improved score, starting swim");
                             current = tumble;
-                            lastCost = tumble.cost;
+                            bestScore = tumble.cost;
 
-                            // swim
-                            for (int s = 0; s < Ns; s++)
+                            int swimCount = 0;
+
+                            for (int s = 0; s < maxSwimmingSteps; s++)
                             {
-                                var swim = Mutate(current, (goal.x, goal.y));
-                                if (swim.cost < lastCost)
+                                var swim = DoSwim(current, goal);
+                                if (swim.cost > bestScore)
                                 {
+                                    swimCount++;
                                     current = swim;
-                                    lastCost = swim.cost;
+                                    bestScore = swim.cost;
                                 }
-                                else break;
+                                else
+                                {
+                                    break;
+                                }
                             }
+
+                            Debug.Log($"[BFOA]    Swim ended after {swimCount} forward steps");
                         }
                     }
 
+                    population[i] = current;
 
-                    bacteria[i] = current;
-                    if (bestGlobal == null || current.cost < bestGlobal.cost)
-                        bestGlobal = current;
+                    if (best == null || current.cost > best.cost)
+                    {
+                        best = current;
+                        Debug.Log($"[BFOA]  New global best score={best.cost:F3}, length={best.path.Count}");
+                    }
                 }
 
-                // ======== REPRODUKCJA ========
-                bacteria.Sort((a, b) => a.cost.CompareTo(b.cost));
-                int half = population / 2;
-                for (int i = half; i < population; i++)
-                    bacteria[i] = bacteria[i - half].Clone();
+                population.Sort((a, b) => b.cost.CompareTo(a.cost)); // sort descending
+                int half = population.Count / 2;
+
+                Debug.Log("[BFOA] Reproduction: Cloning best half into worst half");
+
+                for (int i = half; i < population.Count; i++)
+                    population[i] = population[i - half].Clone();
             }
 
-            // ======== DYSPERSJA ========
-            for (int i = 0; i < population; i++)
+            Debug.Log("[BFOA] Dispersal phase");
+
+            for (int i = 0; i < population.Count; i++)
             {
-                if (UnityEngine.Random.value < Ped)
-                    bacteria[i] = RandomPath(start, goal, startHead, startStep, w, h);
+                if (UnityEngine.Random.value < dispersalProbability)
+                {
+                    population[i] = ThreeStepStart(start, startHead, startStep, w, h, goal);
+                    Debug.Log($"[BFOA]  Dispersed bacterium {i}");
+                }
             }
         }
 
-        // ======== ZWROT ŒCIE¯KI ========
-        onDone?.Invoke(bestGlobal?.path);
         float t1 = Time.realtimeSinceStartup;
+        Debug.LogWarning($"[BFOA] Finished in {(t1 - t0) * 1000f:F1} ms. BestLength={best?.path.Count}");
 
-        Debug.LogWarning($"[BFOA] Robot {robot.Id} took {(t1 - t0) * 1000f:F1} ms (len={bestGlobal?.path.Count})");
-
+        onDone(best?.path);
         yield return null;
     }
+
+    // ============================================================
+    // PATH CANDIDATE CLASS
+    // ============================================================
     class PathCandidate
     {
-        public List<PathManager.Node> path;
+        public List<Node> path;
         public float cost;
-
-        public PathCandidate(List<PathManager.Node> p, float c)
-        {
-            path = p;
-            cost = c;
-        }
-
-        public PathCandidate Clone()
-            => new PathCandidate(new List<PathManager.Node>(path), cost);
+        public PathCandidate(List<Node> p, float c) { path = p; cost = c; }
+        public PathCandidate Clone() => new PathCandidate(new List<Node>(path), cost);
     }
-    PathCandidate RandomPath(Tile start,Tile goal,Heading startHead,int startStep,int w,int h)
+
+    // ============================================================
+    // 3-STEP RANDOM START
+    // ============================================================
+    PathCandidate ThreeStepStart(Tile start, Heading startHead, int startStep,
+                                 int w, int h, Tile goal)
     {
-        var list = new List<PathManager.Node>();
-        var node = new PathManager.Node(start.x, start.y, startHead, PathManager.RobotAction.Wait, startStep);
-        list.Add(node);
+        List<Node> p = new List<Node>();
+        Node n = new Node(start.x, start.y, startHead, RobotAction.Wait, startStep);
+        p.Add(n);
 
-        for (int s = 0; s < 100; s++)
+        Debug.Log("[BFOA] Creating 3-step start");
+
+        for (int i = 0; i < 3; i++)
         {
-            int dir = UnityEngine.Random.Range(0, 4);
-            PathManager.RobotAction a = (PathManager.RobotAction)dir;
-
-            var (next, ok) = Apply(node, a, w, h);
-            if (!ok) continue;
-
-            list.Add(next);
-            node = next;
-
-            if (node.x == goal.x && node.y == goal.y)
-                break;
-        }
-
-        return new PathCandidate(list, Evaluate(list, (goal.x, goal.y)));
-    }
-    
-    PathCandidate Mutate(PathCandidate cand, (int gx, int gy) goal)
-    {
-        var p = new List<PathManager.Node>(cand.path);
-        if (p.Count <= 2)
-            return cand;
-
-        int cut = UnityEngine.Random.Range(1, p.Count - 1);
-        p.RemoveRange(cut, p.Count - cut);
-
-        var last = p[p.Count - 1];
-
-        for (int j = 0; j < 8; j++)
-        {
-            int dir = UnityEngine.Random.Range(0, 4);
-            var a = (PathManager.RobotAction)dir;
-
-            var (nx, ok) = Apply(
-                last,
-                a,
-                RTgrid[last.step + 1].GetLength(0),
-                RTgrid[last.step + 1].GetLength(1));
-
-            if (!ok) continue;
+            RobotAction a = (RobotAction)UnityEngine.Random.Range(0, 4);
+            var (nx, ok) = Apply(n, a);
+            if (!ok)
+            {
+                Debug.Log("[BFOA]  Start step blocked");
+                continue;
+            }
 
             p.Add(nx);
-            last = nx;
+            n = nx;
         }
 
-        return new PathCandidate(p, Evaluate(p, goal));
+        float score = Evaluate(p, (goal.x, goal.y));
+        Debug.Log($"[BFOA] Start score={score:F3}");
+
+        return new PathCandidate(p, score);
     }
 
-    float Evaluate(List<PathManager.Node> p, (int gx, int gy) goal)
+    // ============================================================
+    // TUMBLE
+    // ============================================================
+    PathCandidate DoTumble(PathCandidate cand, Tile goal)
     {
-        float cost = 0f;
+        var p = new List<Node>(cand.path);
+        int L = p.Count;
+        if (L < 4) return cand;
 
-        for (int i = 0; i < p.Count; i++)
+        int cutStart = Mathf.FloorToInt(L * 0.7f);
+        int cutEnd = Mathf.Max(cutStart, L - 2);
+        int cutIndex = UnityEngine.Random.Range(cutStart, cutEnd);
+
+        Debug.Log($"[BFOA]  Tumble cut at index {cutIndex}/{L}");
+
+        p.RemoveRange(cutIndex, p.Count - cutIndex);
+
+        Node last = p[p.Count - 1];
+
+        int choice = UnityEngine.Random.Range(0, 3);
+        Debug.Log($"[BFOA]  Tumble decision={choice}");
+
+        if (choice == 0)
         {
-            var n = p[i];
-
-            // kara za blokadê
-            if (!RTgrid[n.step][n.x, n.y].Walkable)
-                cost += 5000f;
-
-            // dystans do celu
-            cost += Mathf.Abs(n.x - goal.gx) + Mathf.Abs(n.y - goal.gy);
-
-            // kara za d³ugoœæ kroku
-            cost += 0.5f;
+            var (a, okA) = Apply(last, RobotAction.TurnLeft);
+            if (okA) { p.Add(a); last = a; }
+            var (b, okB) = Apply(last, RobotAction.Forward);
+            if (okB) { p.Add(b); last = b; }
+        }
+        else if (choice == 1)
+        {
+            var (a, okA) = Apply(last, RobotAction.TurnLeft);
+            if (okA) { p.Add(a); last = a; }
+        }
+        else
+        {
+            var (a, okA) = Apply(last, RobotAction.Forward);
+            if (okA) { p.Add(a); last = a; }
         }
 
-        return cost;
+        float score = Evaluate(p, (goal.x, goal.y));
+        Debug.Log($"[BFOA]  Tumble result score={score:F3}");
+
+        return new PathCandidate(p, score);
+    }
+
+    // ============================================================
+    // SWIM
+    // ============================================================
+    PathCandidate DoSwim(PathCandidate cand, Tile goal)
+    {
+        var p = new List<Node>(cand.path);
+        Node last = p[p.Count - 1];
+
+        var (nx, ok) = Apply(last, RobotAction.Forward);
+
+        if (ok)
+        {
+            p.Add(nx);
+
+            float score = Evaluate(p, (goal.x, goal.y));
+            Debug.Log($"[BFOA]    Swim forward -> score={score:F3}");
+
+            return new PathCandidate(p, score);
+        }
+
+        Debug.Log("[BFOA]    Swim blocked");
+        return cand;
+    }
+
+    // ============================================================
+    // EVALUATE
+    // ============================================================
+    float Evaluate(List<Node> p, (int gx, int gy) goal)
+    {
+        float score = 0f;
+
+        for (int i = 0; i < p.Count - 1; i++)
+        {
+            Node cur = p[i];
+            Node nxt = p[i + 1];
+
+            score += HeuristicDesirability(cur, nxt, goal);
+        }
+
+        return score;
     }
 }
