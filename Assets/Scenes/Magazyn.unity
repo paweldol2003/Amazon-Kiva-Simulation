@@ -1063,11 +1063,12 @@ MonoBehaviour:
   reproductionIterations: 40
   dispersalProbability: 0.2
   dispersalCycles: 3
-  fireflies: 40
-  fireiterations: 60
+  fireflies: 3
+  generations: 10
+  firesteps: 300
   firealpha: 1
-  particles: 10
-  maxParticlesSteps: 300
+  particles: 1
+  maxParticlesSteps: 30
   nextIterationKey: 1
   switchToThirdAlgo: 30
   switchToACO: 29

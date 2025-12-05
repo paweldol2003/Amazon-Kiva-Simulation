@@ -1,16 +1,330 @@
-using System;
+﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using Unity.VisualScripting;
 using UnityEngine;
+using UnityEngine.InputSystem;
+using UnityEngine.UIElements.Experimental;
+using static System.Collections.Specialized.BitVector32;
 
 public partial class PathManager : MonoBehaviour
 {
     [Header("Firefly")]
     public int fireflies = 40;
-    public int fireiterations = 60;
-    [Range(0.1f, 5f)] public float firealpha = 1.0f;     // waga feromon�w
+    public int generations = 30;
+    public int firesteps = 300;
+    [Range(0.1f, 5f)] public float firealpha = 1.0f;     // waga feromonów
 
 
     void Firefly_Start(Tile start, Tile goal, Heading startHead, int startStep, RobotController robot)
-    { }
+    {
+        Debug.Log($"[Firefly] Starting firefly optimization for robot {robot.Id}");
+
+        StartCoroutine(Firefly_Coroutine(start, goal, startHead, startStep, robot, path =>
+        {
+            if (path == null || path.Count == 0)
+            {
+                Debug.LogError($"[Firefly] Failed to find ANY path for robot {robot.Id}");
+                return;
+            }
+
+            Debug.Log($"[Firefly] Path found for robot {robot.Id}, length={path.Count}");
+
+            for (int i = 0; i < path.Count - 1; i++)
+            {
+                var a = path[i];
+                var b = path[i + 1];
+
+                if (a.step >= 0 && a.step < RTgrid.Count)
+                {
+                    RTgrid[a.step][a.x, a.y].flags |= TileFlags.Blocked;
+                    RTgrid[a.step][b.x, b.y].flags |= TileFlags.Blocked;
+                    gm.gridManager.UpdateRTgrid(a.step, RTgrid[a.step]);
+                }
+            }
+
+            gm.robotManager.AssignPlanToRobot(robot, path);
+            robot.destinations.Dequeue();
+        }));
+    }
+    IEnumerator Firefly_Coroutine(Tile start, Tile goal, Heading startHead, int startStep,
+                               RobotController robot, Action<List<Node>> onDone)
+    {
+        List<Node> bestGlobalPath = null;
+        float bestGlobalFitness = 0f;
+        List<Node> finalBestPath = null;
+        Tile[,] snapshot = gm.gridManager.CloneStep(RTgrid[startStep]);
+        RTgrid[startStep][goal.x, goal.y].flags = TileFlags.Goal;
+
+
+        int width = RTgrid[startStep].GetLength(0);
+        int height = RTgrid[startStep].GetLength(1);
+
+        // globalna mapa światła (wykorzystywana przez wszystkie generacje)
+        float[,] lightPath = new float[width, height];
+
+        for (int g = 0; g < generations; g++)
+        {
+            //Debug.Log($"[Firefly] === GENERATION {g} ===");
+            RTgrid[startStep] = gm.gridManager.CloneStep(snapshot);
+
+            // 1️⃣ LISTA pathów tej generacji
+            List<(List<Node> path, float fitness)> generationPaths = new();
+            //bestGenerationPath = null;
+
+            // 2️⃣ WYZNACZAMY NOWE ŚCIEŻKI KORZYSTAJĄC ZE STAREGO ŚWIATŁA
+            for (int i = 0; i < fireflies; i++)
+            {
+                List<Node> fireflyPath = FA_SetStartPath(start, goal, startHead, startStep, lightPath);
+                float fit = Fitness(fireflyPath, goal, start);
+
+
+                //Debug.Log($"[Firefly] Firefly {i}, pathLen = {fireflyPath.Count}, fitness = {fit:F3}");
+
+                // kolorowanie debug (nie zmieniamy logiki)
+                foreach (var n in fireflyPath)
+                    RTgrid[startStep][n.x, n.y].flags |= TileFlags.AlgPath;
+
+                // aktualizacja bestPath
+                if (bestGlobalPath == null || fit > Fitness(bestGlobalPath, goal, start))
+                {
+                    bestGlobalPath = fireflyPath;
+                    bestGlobalFitness = 2 * fit;
+                }
+
+                generationPaths.Add((fireflyPath, fit));
+
+            }
+            //Debug.Log($"[Firefly] Best global path, pathLen = {bestGlobalPath.Count}, fitness = {bestGlobalFitness:F3}");
+
+            // 3️⃣ WYZERUJ ŚWIATŁO NA KOLEJNĄ GENERACJĘ
+            Array.Clear(lightPath, 0, lightPath.Length);
+
+            // 4️⃣ DOPIERO TERAZ PRZYPISUJEMY ŚWIATŁO ZE WSZYSTKICH NOWYCH ŚCIEŻEK
+            foreach (var (path, fit) in generationPaths)
+                SetLight(lightPath, path, fit);
+            SetLight(lightPath, bestGlobalPath, bestGlobalFitness);
+
+            //Debug.Log($"[Firefly] Generation {g} updated light grid.");
+
+            foreach (var n in bestGlobalPath)
+                RTgrid[startStep][n.x, n.y].flags |= TileFlags.BestAlgPath;
+            gm.gridManager.RefreshAll(startStep);
+
+            ////---Czekaj na naciśnięcie klawisza przed przejściem do kolejnej generacji ---
+            //Debug.Log($"[Firefly] Press {nextIterationKey} to continue to next generation {g + 1}/{generations}...");
+
+            //// 1️⃣ Czekamy aż użytkownik puści klawisz – aby uniknąć natychmiastowego skipu
+            //while (Keyboard.current[nextIterationKey].isPressed)
+            //    yield return null;
+
+            //// 2️⃣ Teraz czekamy na naciśnięcie (prawidłowe przejście do następnej iteracji)
+            //while (!Keyboard.current[nextIterationKey].wasPressedThisFrame)
+            //    yield return null;
+
+
+        }
+        if (bestGlobalPath[bestGlobalPath.Count - 1].x == goal.x &&
+            bestGlobalPath[bestGlobalPath.Count - 1].y == goal.y)
+        {
+            finalBestPath = bestGlobalPath;
+        }
+        onDone?.Invoke(finalBestPath);
+        yield break;
+    }
+
+    List<Node> FA_SetStartPath(Tile start, Tile goal, Heading startHead, int startStep, float[,] lightPath)
+    {
+        List<Node> path = new List<Node>();
+
+
+        Node cur = new Node(start.x, start.y, startHead, RobotAction.Wait, startStep);
+        path.Add(cur);
+
+        int stepsTaken = 0;
+
+        while (!(cur.x == goal.x && cur.y == goal.y) && stepsTaken < firesteps)
+        {
+            List<RobotAction> actions = new List<RobotAction>
+            {
+                RobotAction.Forward,
+                RobotAction.TurnLeft,
+                RobotAction.TurnRight,
+                RobotAction.Wait
+            };
+
+            int A = actions.Count;
+
+            // nexts[i] = lista nodów generowanych przez akcję i
+            List<Node>[] nexts = new List<Node>[A];
+            for (int i = 0; i < A; i++)
+                nexts[i] = new List<Node>();
+
+            float[] weight = new float[A];
+            float sum = 0f;
+
+            // ----------------------------------------
+            // GENEROWANIE NASTĘPNIKÓW I LICZENIE WAG
+            // ----------------------------------------
+            for (int i = 0; i < A; i++)
+            {
+                var action = actions[i];
+                bool allowed;
+
+                (Node nxt, bool ok) = Apply(cur, action);
+                allowed = ok;
+
+                if (!allowed)
+                {
+                    weight[i] = 0f;
+                    //Debug.Log($"[FA] action={action} → NOT ALLOWED");
+                    continue;
+                }
+
+                nexts[i].Add(nxt);
+
+                // --- HEURYSTYKA ---
+                float h = FAHeuristicDesirability(cur, nxt, (goal.x, goal.y));
+
+                // --- ŚWIATŁO ---
+                float L = 0f;
+
+                if (action == RobotAction.Forward)
+                {
+                    L = lightPath[nxt.x, nxt.y];
+                }
+
+                // suma bazowa
+                float w = h;
+                if (h > 1f) w += L;
+
+                //Debug.Log(
+                //    $"[FA] action={action} " +
+                //    $"nxt=({nxt.x},{nxt.y}) " +
+                //    $"heur={h:F2} light={L:F2} sumBase={w:F2}"
+                //);
+
+                // --- BONUS FORWARD ---
+                if (action != RobotAction.Forward && action != RobotAction.Wait)
+                {
+                    (Node nxtfwd, bool okf) = Apply(nxt, RobotAction.Forward);
+                    if (okf)
+                    {
+                        nexts[i].Add(nxtfwd);
+
+                        float h2 = FAHeuristicDesirability(nxt, nxtfwd, (goal.x, goal.y));
+                        float L2 = lightPath[nxtfwd.x, nxtfwd.y];
+
+                        float bonus = h2;
+                        if (h2 > 1f) bonus += L2;
+
+                        //Debug.Log(
+                        //    $"[FA]          forwardBonus nxt=({nxtfwd.x},{nxtfwd.y}) " +
+                        //    $"heur={h2:F2} light={L2:F2} bonus={bonus:F2}"
+                        //);
+
+                        w += bonus;
+                        w *= 0.10f;
+                    }
+                }
+
+                weight[i] = w;
+                sum += w;
+
+                //Debug.Log(
+                //    $"[FA] FINAL action={action} weight={w:F2} (accumulated sum={sum:F2})"
+                //);
+            }
+
+            // --- TABELA WAG PO AKCJACH ---
+            //Debug.Log(
+            //    $"[FA] Weights → F={weight[0]:F2}, L={weight[1]:F2}, R={weight[2]:F2}, W={weight[3]:F2}, sum={sum:F2}"
+            //);
+
+
+            if (sum <= 0f)
+            {
+                // brak możliwości ruchu -> kończymy ścieżkę
+                Debug.Log("[Firefly] No possible moves, ending path");
+                break;
+            }
+
+            // ----------------------------------------
+            // WYBÓR AKCJI METODĄ RULETKI
+            // ----------------------------------------
+            float r = UnityEngine.Random.value * sum;
+            float acc = 0f;
+            int chosen = 0;
+
+            for (int i = 0; i < A; i++)
+            {
+                acc += weight[i];
+                if (r <= acc)
+                {
+                    chosen = i;
+                    break;
+                }
+            }
+
+            // ----------------------------------------
+            // DODAJEMY WSZYSTKIE NASTĘPNIKI ZWYBRANEJ AKCJI
+            // ----------------------------------------
+            foreach (var n in nexts[chosen])
+            {
+                path.Add(n);
+                //Debug.Log($"[FA] Chosen action {n.action}");
+                stepsTaken++;
+            }
+
+
+            // ustawiamy aktualnego noda na ostatni z listy
+            cur = nexts[chosen][nexts[chosen].Count - 1];
+
+        }
+        //Debug.Log($"[Firefly] Steps taken: {stepsTaken}");
+        return path;
+    }
+    float Fitness(List<Node> path, Tile goal, Tile start)
+    {
+        if (path == null || path.Count == 0) return 0f;
+
+        Node last = path[path.Count - 1];
+        float wholeDist = Mathf.Abs(start.x - goal.x) + Mathf.Abs(start.y - goal.y);
+        float dist = Mathf.Abs(last.x - goal.x) + Mathf.Abs(last.y - goal.y);
+        float percent = 1f - (dist / wholeDist);
+
+        if (dist == 0)
+            return (30f * wholeDist / path.Count) /*+ 10f * percent*/;
+        return 10f * percent;
+    }
+    void SetLight(float[,] lightPath, List<Node> path, float light)
+    {
+        foreach (var n in path)
+        {
+            if(n.action == RobotAction.Forward)
+                lightPath[n.x,n.y] += (float)light;
+        }
+    } 
+    float FAHeuristicDesirability(Node c, Node n, (int gx, int gy) goal)
+    {
+        float curManhattan = Mathf.Abs(c.x - goal.gx) + Mathf.Abs(c.y - goal.gy);
+        float nexManhattan = Mathf.Abs(n.x - goal.gx) + Mathf.Abs(n.y - goal.gy);
+        float facing = 0.5f;
+
+        int dx = goal.gx - n.x, dy = goal.gy - n.y;
+        facing = (n.head == Heading.East && dx > 0) ||
+            (n.head == Heading.West && dx < 0) ||
+            (n.head == Heading.North && dy > 0) || 
+            (n.head == Heading.South && dy < 0) ? 3.5f : 1f;
+
+        //if (Mathf.Abs(dx) > Mathf.Abs(dy))
+        //    facing = (n.head == Heading.East && dx > 0) || (n.head == Heading.West && dx < 0) ? 3.5f : 1f;
+        //else if (Mathf.Abs(dy) > 0)
+        //    facing = (n.head == Heading.North && dy > 0) || (n.head == Heading.South && dy < 0) ? 3.5f : 1f;
+        // Im mniejsza odległość do celu, tym większa atrakcyjność
+        float baseVal = 30 * (curManhattan - nexManhattan);
+        baseVal = Mathf.Max(baseVal, 0f);  // nie pozwalamy na wartości ujemne
+
+        return baseVal + facing;
+    }
 }

@@ -52,18 +52,21 @@ public class Tile
 
     public void UpdateColor()
     {
+
         var C = Palette ?? new TileColors(); // awaryjnie gdyby null
+        if ((_flags & TileFlags.BestAlgPath) != 0) { color = C.bestAlgPath; return; }
+        if ((_flags & TileFlags.AlgPath) != 0) { color = C.algPath; return; }
+        if ((_flags & TileFlags.Goal) != 0) { color = C.goal; return; }
+
         if ((_flags & (TileFlags.Shelf | TileFlags.Occupied)) == (TileFlags.Shelf | TileFlags.Occupied)) { color = C.occupiedShelf; return; }
         if ((_flags & TileFlags.Shelf) != 0) { color = C.shelf; return; }
         if ((_flags & TileFlags.Blocked) != 0) { color = C.blocked; return; }
         if ((_flags & TileFlags.Spawn) != 0) { color = C.spawn; return; }
         if ((_flags & TileFlags.Spawn | TileFlags.Blocked) == 0) { color = C.blocked; return; }
-        if ((_flags & TileFlags.Goal) != 0) { color = C.goal; return; }
         //if ((_flags & TileFlags.Reserved) != 0) { color = C.reserved; return; }
         if ((_flags & TileFlags.TransferPoint) != 0) { color = C.transferpoint; return; }
         if ((_flags & TileFlags.TransferPoint | TileFlags.Blocked) == 0) { color = C.blocked; return; }
-        if ((_flags & TileFlags.BestAlgPath) != 0) { color = C.bestAlgPath; return; }
-        if ((_flags & TileFlags.AlgPath) != 0) { color = C.algPath; return; }
+
 
         color = baseColor;
     }
@@ -82,7 +85,7 @@ public class TileColors
     [Header("Specjalne")]
     public Color32 reserved = new Color32(0, 200, 80, 255);
     public Color32 spawn = new Color32(40, 120, 255, 255);
-    public Color32 goal = new Color32(255, 210, 0, 255);
+    public Color32 goal = new Color32(155, 210, 200, 255);
     public Color32 transferpoint = new Color32(127, 0, 255, 100);
     public Color32 algPath = new Color32(255, 0, 0, 255);
     public Color32 bestAlgPath = new Color32(255, 215, 0, 255);

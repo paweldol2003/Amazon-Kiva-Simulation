@@ -215,6 +215,6 @@ public partial class PathManager : MonoBehaviour
             facing = (n.head == Heading.East && dx > 0) || (n.head == Heading.West && dx < 0) ? 3.5f : 1f;
         else if (Mathf.Abs(dy) > 0)
             facing = (n.head == Heading.North && dy > 0) || (n.head == Heading.South && dy < 0) ? 3.5f : 1f;
-        return 20 * (curManhattan - nexManhattan) + facing + 2 * Mathf.Abs(c.head - n.head); /// ((nexManhattan + 2f)*2);
+        return 30 * (curManhattan - nexManhattan) + facing + 2 * Mathf.Abs(c.head - n.head); /// ((nexManhattan + 2f)*2);
     }
 }

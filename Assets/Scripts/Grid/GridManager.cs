@@ -159,8 +159,8 @@ public class GridManager : MonoBehaviour
             int x = i * spacing + spacing / 2;
             spawnPoints.Add(new Vector2Int(x, 0));
             spawnPoints.Add(new Vector2Int(x, length - 1));
-            grid[x, 0].flags |= (TileFlags.Spawn /*| TileFlags.Blocked*/); // kolor z flag
-            grid[x, length - 1].flags |= (TileFlags.Spawn);
+            grid[x, 0].flags |= (TileFlags.Spawn | TileFlags.Blocked); // kolor z flag
+            grid[x, length - 1].flags |= (TileFlags.Spawn | TileFlags.Blocked);
         }
 
         //Debug.Log("Spawnpoints:");
@@ -209,7 +209,7 @@ public class GridManager : MonoBehaviour
 
     // Deep copy – tworzy NOWĄ tablicę i NOWE obiekty Tile (logiczne pola).
     // NIE przenosimy rendererów/meshy – te są tylko w głównym gridzie do rysowania.
-    private Tile[,] CloneStep(Tile[,] src)
+    public Tile[,] CloneStep(Tile[,] src)
     {
         int w = src.GetLength(0), h = src.GetLength(1);
         var dst = new Tile[w, h];
