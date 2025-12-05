@@ -38,7 +38,7 @@ public class RobotController : MonoBehaviour
     [SerializeField] private Tile spawnTile;   // <- spawn tile przypisany przy inicjalizacji
 
     [Header("Visual")]
-    [SerializeField] private float visualHeight = 0.14f; // Y robota w świecie
+    [SerializeField] public float visualHeight = 0.14f; // Y robota w świecie
 
     // Id (np. nadawany przez RobotManager)
     public int Id { get; private set; }

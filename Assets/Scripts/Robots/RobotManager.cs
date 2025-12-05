@@ -14,7 +14,7 @@ public class RobotManager : MonoBehaviour
     [Header("Robot Setup")]
     public RobotController robotPrefab;
     [Tooltip("Y po³o¿enia robota (musi pasowaæ do sceny)")]
-    public float visualHeight = 0.5f;
+    public float visualHeight = 0.14f;
 
     [Header("Movement")]
     [Tooltip("Czas p³ynnego ruchu robota miêdzy kaflami (0 = teleport)")]
@@ -43,6 +43,8 @@ public class RobotManager : MonoBehaviour
                 var rc = Instantiate(robotPrefab, spawnPos, Quaternion.identity);
                 rc.gameObject.name = $"Robot_{id}";
                 rc.gameObject.tag = "Robot";
+                rc.visualHeight = visualHeight;
+
 
                 rc.Init(id, new Vector2Int(tile.x, tile.y), Heading.North, tile);
                 robots.Add(rc);
