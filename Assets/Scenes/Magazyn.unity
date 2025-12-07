@@ -1057,14 +1057,18 @@ MonoBehaviour:
   Q: 100
   tau0: 0.1
   maxStepsFactor: 0.1
-  bacterias: 40
-  maxSwimmingSteps: 6
-  maxChemotaxisSteps: 30
-  reproductionIterations: 40
-  dispersalProbability: 0.2
-  dispersalCycles: 3
-  fireflies: 3
-  generations: 10
+  bacteriaSteps: 300
+  bacterias: 4
+  chemotaxes: 3
+  reproductions: 20
+  elimAndDisp: 5
+  eliminationProbability: 0.05
+  swimLength: 3
+  herds: 1
+  camels: 20
+  camelsteps: 300
+  fireflies: 10
+  generations: 70
   firesteps: 300
   firealpha: 1
   particles: 1

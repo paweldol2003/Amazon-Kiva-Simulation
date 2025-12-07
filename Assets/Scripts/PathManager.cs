@@ -12,8 +12,8 @@ public partial class PathManager : MonoBehaviour
     public enum Heading { North = 0, East = 1, South = 2, West = 3 }
     public enum RobotAction { Forward = 0, TurnLeft = 1, TurnRight = 2, Wait = 3 }
 
-    private enum AlgorithmMode { ACO = 0, PSO = 1, Firefly = 2, All = 3 }
-    private AlgorithmMode algorithmMode = AlgorithmMode.Firefly;
+    private enum AlgorithmMode { ACO = 0, PSO = 1, Firefly = 2, BFOA = 3, Camel = 4, All = 5 }
+    private AlgorithmMode algorithmMode = AlgorithmMode.Camel;
 
     [Header("Controls")]
     public Key nextIterationKey = Key.Space;
@@ -70,6 +70,15 @@ public partial class PathManager : MonoBehaviour
                 endTile = walkableShelf[64];
                 PSO_Start(startTile, endTile, startHead, startStep, robot);
                 break;
+            case AlgorithmMode.BFOA:
+                Debug.Log($"[BFOA] Starting shelf path for robot {robot.Id} at step {startStep}");
+                BFOA_Start(startTile, endTile, startHead, startStep, robot);
+                break;
+            case AlgorithmMode.Camel:
+                Debug.Log($"[Camel] Starting shelf path for robot {robot.Id} at step {startStep}");
+                Camel_Start(startTile, endTile, startHead, startStep, robot);
+                break;
+
             case AlgorithmMode.Firefly:
                 Debug.Log($"[Firefly] Starting shelf path for robot {robot.Id} at step {startStep}");
                 //endTile = walkableShelf[64];
@@ -80,7 +89,7 @@ public partial class PathManager : MonoBehaviour
                 Debug.Log($"[All] Starting shelf path for robot {robot.Id} at step {startStep}");
                 ACO_Start(startTile, endTile, startHead, startStep, robot);
                 Firefly_Start(startTile, endTile, startHead, startStep, robot);
-                Bacteria_Start(startTile, endTile, startHead, startStep, robot);
+                BFOA_Start(startTile, endTile, startHead, startStep, robot);
                 break;
         }
 
@@ -114,9 +123,18 @@ public partial class PathManager : MonoBehaviour
                 ACO_Start(startTile, endTile, startHead, startStep, robot);
                 break;
             case AlgorithmMode.PSO:
-                Debug.Log($"[PSO] Starting shelf path for robot {robot.Id} at step {startStep}");
+                Debug.Log($"[PSO] Starting spawnpoint path for robot {robot.Id} at step {startStep}");
                 PSO_Start(startTile, endTile, startHead, startStep, robot);
                 break;
+            case AlgorithmMode.BFOA:
+                Debug.Log($"[BFOA] Starting spawnpoint path for robot {robot.Id} at step {startStep}");
+                BFOA_Start(startTile, endTile, startHead, startStep, robot);
+                break;
+            case AlgorithmMode.Camel:
+                Debug.Log($"[Camel] Starting spawnpoint path for robot {robot.Id} at step {startStep}");
+                Camel_Start(startTile, endTile, startHead, startStep, robot);
+                break;
+
             case AlgorithmMode.Firefly:
                 Debug.Log($"[Firefly] Starting spawnpoint path for robot {robot.Id} at step {startStep}");
                 Firefly_Start(startTile, endTile, startHead, startStep, robot);
@@ -125,7 +143,7 @@ public partial class PathManager : MonoBehaviour
                 Debug.Log($"[All] Starting spawnpoint path for robot {robot.Id} at step {startStep}");
                 ACO_Start(startTile, endTile, startHead, startStep, robot);
                 Firefly_Start(startTile, endTile, startHead, startStep, robot);
-                Bacteria_Start(startTile, endTile, startHead, startStep, robot);
+                BFOA_Start(startTile, endTile, startHead, startStep, robot);
                 break;
         }
              //ACO_Start(startTile, endTile, startHead, startStep, robot);
@@ -163,8 +181,16 @@ public partial class PathManager : MonoBehaviour
                 ACO_Start(startTile, endTile, startHead, startStep, robot);
                 break;
             case AlgorithmMode.PSO:
-                Debug.Log($"[PSO] Starting shelf path for robot {robot.Id} at step {startStep}");
+                Debug.Log($"[PSO] Starting transfer point path for robot {robot.Id} at step {startStep}");
                 PSO_Start(startTile, endTile, startHead, startStep, robot);
+                break;
+            case AlgorithmMode.BFOA:
+                Debug.Log($"[BFOA] Starting transfer point path for robot {robot.Id} at step {startStep}");
+                BFOA_Start(startTile, endTile, startHead, startStep, robot);
+                break;
+            case AlgorithmMode.Camel:
+                Debug.Log($"[Camel] Starting transfer point path for robot {robot.Id} at step {startStep}");
+                Camel_Start(startTile, endTile, startHead, startStep, robot);
                 break;
             case AlgorithmMode.Firefly:
                 Debug.Log($"[Firefly] Starting transfer point path for robot {robot.Id} at step {startStep}");
@@ -174,7 +200,7 @@ public partial class PathManager : MonoBehaviour
                 Debug.Log($"[All] Starting transfer point path for robot {robot.Id} at step {startStep}");
                 ACO_Start(startTile, endTile, startHead, startStep, robot);
                 Firefly_Start(startTile, endTile, startHead, startStep, robot);
-                Bacteria_Start(startTile, endTile, startHead, startStep, robot);
+                BFOA_Start(startTile, endTile, startHead, startStep, robot);
                 break;
         }
         //ACO_Start(startTile, endTile, startHead, startStep, robot);
