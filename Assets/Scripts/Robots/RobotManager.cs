@@ -91,23 +91,77 @@ public class RobotManager : MonoBehaviour
     /// <summary>
     /// Konwersja œcie¿ki ACO (Node) na plan robota i wgranie do wskazanego robota.
     /// </summary>
+    //public void AssignPlanToRobot(RobotController robot, List<PathManager.Node> path)
+    //{
+    //    if (!robot) { Debug.LogWarning("[RobotManager] AssignPlanToRobot: robot == null"); return; }
+    //    if (path == null || path.Count == 0) { Debug.LogWarning("[RobotManager] Pusta œcie¿ka."); return; }
+
+    //    var list = new List<RobotInstruction>(path.Count);
+    //    foreach (var n in path)
+    //    {
+    //        list.Add(new RobotInstruction(
+    //            n.step,
+    //            n.action,
+    //            RTgrid[n.step][n.x, n.y],
+    //            n.head
+    //        ));
+    //    }
+    //    robot.AssignPlan(list);
+    //    Debug.Log($"[RobotManager] Wgrano plan ({list.Count}) do {robot.name}.");
+    //}
+    //// W pliku RobotManager.cs
+
     public void AssignPlanToRobot(RobotController robot, List<PathManager.Node> path)
     {
         if (!robot) { Debug.LogWarning("[RobotManager] AssignPlanToRobot: robot == null"); return; }
         if (path == null || path.Count == 0) { Debug.LogWarning("[RobotManager] Pusta œcie¿ka."); return; }
 
+        // 1. ZWOLNIENIE STARTU (Logika: Wyjazd)
+        // Pobieramy startowy punkt œcie¿ki. W tym kroku robot jeszcze tam jest, 
+        // ale w kroku nastêpnym (step + 1) ju¿ go nie bêdzie.
+        // UWAGA: Startowy node œcie¿ki to zazwyczaj pozycja, w której robot JEST aktualnie.
+        var startNode = path[0];
+
+        // Od momentu startu + 1, stare miejsce jest wolne "na zawsze" (dopóki ktoœ inny nie wjedzie)
+        gm.gridManager.FreeTileFuture(startNode.x, startNode.y, startNode.step + 1);
+
+
+        // 2. REZERWACJA PRZEJAZDU (Logika: Jazda)
+        // Iterujemy przez ca³¹ œcie¿kê, rezerwuj¹c pola w konkretnych momentach czasu.
+        // Tworzymy listê instrukcji dla robota.
         var list = new List<RobotInstruction>(path.Count);
-        foreach (var n in path)
+
+        for (int i = 0; i < path.Count - 1; i++)
         {
+            var n = path[i];
+            var nxt = path[i + 1];
+
+
+            // Dodajemy instrukcjê dla robota (Twoja stara logika)
             list.Add(new RobotInstruction(
                 n.step,
                 n.action,
                 RTgrid[n.step][n.x, n.y],
                 n.head
             ));
+
+            // AKTUALIZACJA RTGRID:
+            // Rezerwujemy to pole w tym konkretnym kroku czasu.
+            // Dziêki temu inne roboty planuj¹ce w przysz³oœci bêd¹ wiedzia³y, ¿e w kroku 'n.step' tu jest t³ok.
+            gm.gridManager.ReserveSpecificStep(n.x, n.y, n.step);
+            gm.gridManager.ReserveSpecificStep(nxt.x, nxt.y, n.step);
+
         }
+
+        // 3. ZABLOKOWANIE CELU (Logika: Parkowanie)
+        // Robot koñczy trasê w ostatnim punkcie. Od tego momentu a¿ do koñca czasu pole musi byæ zajête.
+        var endNode = path[path.Count - 1];
+        gm.gridManager.BlockTileFuture(endNode.x, endNode.y, endNode.step);
+
+
+        // 4. Finalizacja przypisania planu
         robot.AssignPlan(list);
-        Debug.Log($"[RobotManager] Wgrano plan ({list.Count}) do {robot.name}.");
+        Debug.Log($"[RobotManager] Wgrano plan ({list.Count}) do {robot.name}. Zaktualizowano RTGrid.");
     }
 
 

@@ -303,5 +303,43 @@ public class GridManager : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Zwalnia pole od danego kroku aż do końca symulacji (np. robot wyjeżdża ze spawnu).
+    /// </summary>
+    public void FreeTileFuture(int x, int y, int startStep)
+    {
+        // Zabezpieczenie przed wyjściem poza zakres czasu
+        if (startStep >= RTgrid.Count) return;
+
+        for (int i = startStep; i < RTgrid.Count; i++)
+        {
+            RTgrid[i][x, y].flags &= ~TileFlags.Blocked;
+            // Opcjonalnie: usuwamy też flagę Occupied, jeśli jej używasz do logiki
+            RTgrid[i][x, y].flags &= ~TileFlags.Occupied;
+        }
+    }
+
+    /// <summary>
+    /// Blokuje pole od danego kroku aż do końca symulacji (np. robot dojeżdża do celu i tam zostaje).
+    /// </summary>
+    public void BlockTileFuture(int x, int y, int startStep)
+    {
+        if (startStep >= RTgrid.Count) return;
+
+        for (int i = startStep; i < RTgrid.Count; i++)
+        {
+            RTgrid[i][x, y].flags |= TileFlags.Blocked;
+        }
+    }
+
+    /// <summary>
+    /// Rezerwuje pole TYLKO w konkretnym kroku czasowym (robot tylko przejeżdża).
+    /// </summary>
+    public void ReserveSpecificStep(int x, int y, int step)
+    {
+        if (step >= RTgrid.Count) return;
+
+        RTgrid[step][x, y].flags |= TileFlags.Blocked;
+    }
 
 }
