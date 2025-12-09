@@ -24,21 +24,21 @@ public partial class PathManager : MonoBehaviour
                 return;
             }
 
-            for (int i = 0; i < path.Count - 1; i++)
-            {
-                var node = path[i];
-                var nxtnode = path[i + 1];
+            //for (int i = 0; i < path.Count - 1; i++)
+            //{
+            //    var node = path[i];
+            //    var nxtnode = path[i + 1];
 
-                int step = node.step;
-                if (step < 0 || step >= RTgrid.Count) continue;
+            //    int step = node.step;
+            //    if (step < 0 || step >= RTgrid.Count) continue;
 
-                var gridStep = RTgrid[step];
+            //    var gridStep = RTgrid[step];
 
-                gridStep[node.x, node.y].flags |= TileFlags.Blocked;
-                gridStep[nxtnode.x, nxtnode.y].flags |= TileFlags.Blocked;
+            //    gridStep[node.x, node.y].flags |= TileFlags.Blocked;
+            //    gridStep[nxtnode.x, nxtnode.y].flags |= TileFlags.Blocked;
 
-                gm.gridManager.UpdateRTgrid(step, gridStep);
-            }
+            //    gm.gridManager.UpdateRTgrid(step, gridStep);
+            //}
 
             Debug.LogWarning($"Assigning point path to robot {robot.Id}, path size: {path.Count}");
             gm.robotManager.AssignPlanToRobot(robot, path);

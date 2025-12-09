@@ -13,7 +13,7 @@ public partial class PathManager : MonoBehaviour
     public enum RobotAction { Forward = 0, TurnLeft = 1, TurnRight = 2, Wait = 3 }
 
     private enum AlgorithmMode { ACO = 0, PSO = 1, Firefly = 2, BFOA = 3, Camel = 4, All = 5 }
-    private AlgorithmMode algorithmMode = AlgorithmMode.Camel;
+    private AlgorithmMode algorithmMode = AlgorithmMode.ACO;
 
     [Header("Controls")]
     public Key nextIterationKey = Key.Space;
@@ -225,11 +225,6 @@ public partial class PathManager : MonoBehaviour
     (Node next, bool allowed) Apply(Node s, RobotAction a)
     {
         bool walkable = true;
-        if (s.step + 1 >= RTgrid.Count)
-        {
-            Debug.LogError("PathManager: Reached the end of RTgrid time steps! ");
-            return (s, false);
-        }
         switch (a)
         {
             case RobotAction.TurnLeft:

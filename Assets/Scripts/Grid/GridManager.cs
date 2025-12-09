@@ -181,30 +181,30 @@ public class GridManager : MonoBehaviour
         }
     }
 
-    public void CheckSpawnpointsOccupation(int step)
-    {
-        var robots = gm.robotManager.AllRobots;
-        foreach (var s in spawnPoints)
-        {
-            bool occupied = false;
-            foreach (var r in robots)
-            {
-                if (r.GridPos.x == s.x && r.GridPos.y == s.y)
-                {
-                    occupied = true;
-                    break;
-                }
-            }
-            //chwilowy tile
-            var tile = new Tile(s.x, s.y, width);
-            tile.flags = RTgrid[step][s.x, s.y].flags;
-            if (occupied)
-                tile.flags |= TileFlags.Blocked;
-            else
-                tile.flags &= ~TileFlags.Blocked;
-            UpdateRTgrid(step, null, tile);
-        }
-    }
+    //public void CheckSpawnpointsOccupation(int step)
+    //{
+    //    var robots = gm.robotManager.AllRobots;
+    //    foreach (var s in spawnPoints)
+    //    {
+    //        bool occupied = false;
+    //        foreach (var r in robots)
+    //        {
+    //            if (r.GridPos.x == s.x && r.GridPos.y == s.y)
+    //            {
+    //                occupied = true;
+    //                break;
+    //            }
+    //        }
+    //        //chwilowy tile
+    //        var tile = new Tile(s.x, s.y, width);
+    //        tile.flags = RTgrid[step][s.x, s.y].flags;
+    //        if (occupied)
+    //            tile.flags |= TileFlags.Blocked;
+    //        else
+    //            tile.flags &= ~TileFlags.Blocked;
+    //        UpdateRTgrid(step, null, tile);
+    //    }
+    //}
 
 
     // Deep copy – tworzy NOWĄ tablicę i NOWE obiekty Tile (logiczne pola).
@@ -231,7 +231,7 @@ public class GridManager : MonoBehaviour
 
 
 
-    public void UpdateRTgrid(int step, Tile[,] gridForStep = null, Tile spawnTile = null)
+    public void UpdateRTgrid(int step, Tile[,] gridForStep = null/*, Tile spawnTile = null*/)
     {
         if (step < 0)
         {
@@ -266,21 +266,21 @@ public class GridManager : MonoBehaviour
                 // dodaj jako nowy krok – KOPIĘ poprzedniego
                 RTgrid.Add(CloneStep(RTgrid[step - 1]));
             }
-            else if (step < RTgrid.Count)
-            {
-                //nadpisanie przyszłych spawnpointów zmianą flagi
-                if (spawnTile != null)
-                {
-                    for (int i = step; i < RTgrid.Count; i++) 
-                    {
-                        RTgrid[i][spawnTile.x, spawnTile.y].flags = spawnTile.flags;
-                    }
-                }
-                //else RTgrid[step] = CloneStep(RTgrid[step]);
-                // „nic się nie zmieniło” – ale jeśli chcesz, możesz nadpisać kopią poprzedniego
-                // RTgrid[step] = CloneStep(RTgrid[step]); // zwykle NO-OP
-                return;
-            }
+            //else if (step < RTgrid.Count)
+            //{
+            //    //nadpisanie przyszłych spawnpointów zmianą flagi
+            //    if (spawnTile != null)
+            //    {
+            //        for (int i = step; i < RTgrid.Count; i++) 
+            //        {
+            //            RTgrid[i][spawnTile.x, spawnTile.y].flags = spawnTile.flags;
+            //        }
+            //    }
+            //    //else RTgrid[step] = CloneStep(RTgrid[step]);
+            //    // „nic się nie zmieniło” – ale jeśli chcesz, możesz nadpisać kopią poprzedniego
+            //    // RTgrid[step] = CloneStep(RTgrid[step]); // zwykle NO-OP
+            //    return;
+            //}
             
         }
         else
@@ -299,7 +299,7 @@ public class GridManager : MonoBehaviour
             {
                 Debug.LogError("[GridManager] Nieciągłość kroków (brak kroków pośrednich).");
             }
-            CheckSpawnpointsOccupation(step);
+            //CheckSpawnpointsOccupation(step);
         }
     }
 

@@ -131,11 +131,9 @@ public class RobotManager : MonoBehaviour
         // Tworzymy listê instrukcji dla robota.
         var list = new List<RobotInstruction>(path.Count);
 
-        for (int i = 0; i < path.Count - 1; i++)
+        for (int i = 0; i < path.Count; i++)
         {
             var n = path[i];
-            var nxt = path[i + 1];
-
 
             // Dodajemy instrukcjê dla robota (Twoja stara logika)
             list.Add(new RobotInstruction(
@@ -149,7 +147,11 @@ public class RobotManager : MonoBehaviour
             // Rezerwujemy to pole w tym konkretnym kroku czasu.
             // Dziêki temu inne roboty planuj¹ce w przysz³oœci bêd¹ wiedzia³y, ¿e w kroku 'n.step' tu jest t³ok.
             gm.gridManager.ReserveSpecificStep(n.x, n.y, n.step);
-            gm.gridManager.ReserveSpecificStep(nxt.x, nxt.y, n.step);
+            if (i + 1 < path.Count)
+            {
+                var nxt = path[i + 1];
+                gm.gridManager.ReserveSpecificStep(nxt.x, nxt.y, n.step);
+            }
 
         }
 

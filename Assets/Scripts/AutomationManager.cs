@@ -105,7 +105,7 @@ public class AutomationManager : MonoBehaviour
 
         // --- CheckSpawnpointsOccupation ---
         var t2 = Time.realtimeSinceStartup;
-        gm.gridManager.CheckSpawnpointsOccupation(currentStep);
+        //gm.gridManager.CheckSpawnpointsOccupation(currentStep);
         //Debug.LogWarning($"[Timer] CheckSpawnpointsOccupation: {(Time.realtimeSinceStartup - t2) * 1000f} ms");
 
         // --- RefreshAll ---
