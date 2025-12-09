@@ -11,7 +11,7 @@ public partial class PathManager : MonoBehaviour
     [Header("Camel")]
     public int herds = 5;
     public int camels = 20;
-    public int camelsteps = 300;
+    public int camelsteps = 32;
 
     void Camel_Start(Tile start, Tile goal, Heading startHead, int startStep, RobotController robot)
     {
@@ -48,7 +48,11 @@ public partial class PathManager : MonoBehaviour
     }
     IEnumerator Camel_Coroutine(Tile start, Tile goal, Heading startHead, int startStep, RobotController robot, System.Action<List<Node>> onDone)
     {
+        float t0 = Time.realtimeSinceStartup;   // <-- START pomiaru
+
         Tile[,] snapshot = gm.gridManager.CloneStep(RTgrid[startStep]);
+        RTgrid[startStep][goal.x, goal.y].flags = TileFlags.Goal;
+
 
         List<Node> bestPath = null;
         float bestPathHumidity = float.NegativeInfinity;
@@ -74,10 +78,16 @@ public partial class PathManager : MonoBehaviour
                     List<Node> camelPath = Camel_SetPath(herdStart, goal, lastHerdNode.head, startStep, lastHerdNode);
 
                     float humidity = Camel_Humidity(camelPath, start, goal);
+                    if (camelPath.Count == 0)
+                    {
+                        Debug.LogError($"[Camel] Camel {c} produced empty path, skipping");
+                        Debug.LogError($"[Camel] Last herd node: ({lastHerdNode.x},{lastHerdNode.y},{lastHerdNode.action}) step {lastHerdNode.step}");
+                        continue;
+                    }
 
                     Node camelNext = camelPath[0];
-                    if(humidity> bestHumidity)
-                    { 
+                    if (humidity > bestHumidity)
+                    {
                         bestNextNode = camelNext;
                         bestHumidity = humidity;
                     }
@@ -89,7 +99,7 @@ public partial class PathManager : MonoBehaviour
                     foreach (var n in camelPath)
                         RTgrid[startStep][n.x, n.y].flags |= TileFlags.AlgPath;
                 }
-                gm.gridManager.RefreshAll(startStep);
+
 
 
                 //foreach (var kv in humiditySum)
@@ -101,14 +111,16 @@ public partial class PathManager : MonoBehaviour
                 //    }
                 //}
                 herdPath.Add(bestNextNode);
-                Debug.LogWarning($"[Camel] Herd {h}, added node ({bestNextNode.x},{bestNextNode.y},{bestNextNode.action}) with humidity {bestHumidity:F2}");
+                //Debug.LogWarning($"[Camel] Herd {h}, added node ({bestNextNode.x},{bestNextNode.y},{bestNextNode.action}) with humidity {bestHumidity:F2}");
+                foreach (var n in herdPath)
+                    RTgrid[startStep][n.x, n.y].flags |= TileFlags.BestAlgPath;
+                gm.gridManager.RefreshAll(startStep);
+                //while (Keyboard.current[nextIterationKey].isPressed)
+                //    yield return null;
 
-                while (Keyboard.current[nextIterationKey].isPressed)
-                    yield return null;
-
-                // 2️⃣ Teraz czekamy na naciśnięcie (prawidłowe przejście do następnej iteracji)
-                while (!Keyboard.current[nextIterationKey].wasPressedThisFrame)
-                    yield return null;
+                //// 2️⃣ Teraz czekamy na naciśnięcie (prawidłowe przejście do następnej iteracji)
+                //while (!Keyboard.current[nextIterationKey].wasPressedThisFrame)
+                //    yield return null;
             }
             float herdPathHumidity = Camel_Humidity(herdPath, start, goal);
             if (bestPathHumidity < herdPathHumidity)
@@ -117,6 +129,9 @@ public partial class PathManager : MonoBehaviour
                 bestPath = herdPath;
             }
         }
+        float elapsed = (Time.realtimeSinceStartup - t0) * 1000f;
+        Debug.LogWarning($"[Camel Timer] Camel Coroutine for robot {robot.Id} took {elapsed:F2} ms");
+
 
         onDone?.Invoke(bestPath);
 
@@ -126,16 +141,12 @@ public partial class PathManager : MonoBehaviour
     List<Node> Camel_SetPath(Tile start, Tile goal, Heading startHead, int startStep, Node cur)
     {
         List<Node> path = new List<Node>();
-        int stepsTaken = cur.step-startStep;
-        Debug.Log($"[Camel] Steps taken so far: {stepsTaken}");
+        //int stepsTaken = cur.step-startStep;
+        int stepsTaken = 0;
+        //Debug.Log($"[Camel] Steps taken so far: {stepsTaken}");
 
         while (!(cur.x == goal.x && cur.y == goal.y) && stepsTaken < camelsteps)
         {
-            if (cur.step >= 1999)
-            {
-                Debug.LogError("[Camel] Too many steps taken, breaking to avoid infinite loop");
-                break;
-            }
             List<RobotAction> actions = new List<RobotAction>
             {
                 RobotAction.Forward,
@@ -164,7 +175,7 @@ public partial class PathManager : MonoBehaviour
                 if (!allowed)
                 {
                     weight[i] = 0f;
-                    //Debug.Log($"[FA] action={action} → NOT ALLOWED");
+                    //Debug.LogWarning($"[FA] action={action} → NOT ALLOWED");
                     continue;
                 }
 
@@ -183,7 +194,7 @@ public partial class PathManager : MonoBehaviour
                 //);
 
                 // --- FORWARD ---
-                if (action != RobotAction.Forward && action != RobotAction.Wait)
+                if (action != RobotAction.Forward/* && action != RobotAction.Wait*/)
                 {
                     (Node nxtfwd, bool okf) = Apply(nxt, RobotAction.Forward);
                     if (okf)
@@ -199,7 +210,11 @@ public partial class PathManager : MonoBehaviour
                         //);
 
                         w += h2;
-                        w *= 0.10f;
+                        w *= 0.20f;
+                    }
+                    else if (action == RobotAction.Wait)
+                    {
+                        w= 0f;
                     }
                 }
 
@@ -210,6 +225,10 @@ public partial class PathManager : MonoBehaviour
                 //    $"[FA] FINAL action={action} weight={w:F2} (accumulated sum={sum:F2})"
                 //);
             }
+            // --- TABELA WAG PO AKCJACH ---
+            //Debug.Log(
+            //    $"[FA] Weights → F={weight[0]:F2}, L={weight[1]:F2}, R={weight[2]:F2}, W={weight[3]:F2}, sum={sum:F2}"
+            //);
 
             if (sum <= 0f)
             {
@@ -274,9 +293,9 @@ public partial class PathManager : MonoBehaviour
         facing = (n.head == Heading.East && dx > 0) ||
             (n.head == Heading.West && dx < 0) ||
             (n.head == Heading.North && dy > 0) ||
-            (n.head == Heading.South && dy < 0) ? 3.5f : 1f;
+            (n.head == Heading.South && dy < 0) ? 2.5f : 1f;
 
-        float baseVal = 30 * (curManhattan - nexManhattan);
+        float baseVal = 50 * (curManhattan - nexManhattan);
         baseVal = Mathf.Max(baseVal, 0f);  // nie pozwalamy na wartości ujemne
 
         return baseVal + facing;

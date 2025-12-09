@@ -299,6 +299,7 @@ public class GridManager : MonoBehaviour
             {
                 Debug.LogError("[GridManager] Nieciągłość kroków (brak kroków pośrednich).");
             }
+            CheckSpawnpointsOccupation(step);
         }
     }
 

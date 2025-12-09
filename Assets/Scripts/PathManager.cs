@@ -225,6 +225,11 @@ public partial class PathManager : MonoBehaviour
     (Node next, bool allowed) Apply(Node s, RobotAction a)
     {
         bool walkable = true;
+        if (s.step + 1 >= RTgrid.Count)
+        {
+            Debug.LogError("PathManager: Reached the end of RTgrid time steps! ");
+            return (s, false);
+        }
         switch (a)
         {
             case RobotAction.TurnLeft:
