@@ -7,19 +7,26 @@ using UnityEngine.InputSystem; // New Input System
 public partial class PathManager : MonoBehaviour
 {
     private GameManager gm;
-    //private Tile[,] grid;
     private List<Tile[,]> RTgrid; //Real time grid
     public enum Heading { North = 0, East = 1, South = 2, West = 3 }
     public enum RobotAction { Forward = 0, TurnLeft = 1, TurnRight = 2, Wait = 3 }
 
-    private enum AlgorithmMode { ACO = 0, PSO = 1, Firefly = 2, BFOA = 3, Camel = 4, All = 5 }
-    private AlgorithmMode algorithmMode = AlgorithmMode.ACO;
+    // UWAGA: Dodano Algorytm Genetyczny (GA)
+    private enum AlgorithmMode { ACO = 0, PSO = 1, Firefly = 2, BFOA = 3, Camel = 4, All = 5, GA = 6 }
+    // Ustawienie domyœlnego trybu na GA
+    private AlgorithmMode algorithmMode = AlgorithmMode.GA;
 
     [Header("Controls")]
     public Key nextIterationKey = Key.Space;
     public Key switchToThirdAlgo = Key.P;
     public Key switchToACO = Key.O;
+
+    // NOWY PRZYCISK DLA AG: U¿yjemy klawisza L jako przyk³adu, aby zwolniæ klawisz I
+    public Key switchToGA = Key.L;
+
+    // Zmieniono klawisz dla PSO na I, zgodnie z pierwotnym przeznaczeniem
     public Key switchToPSO = Key.I;
+
     public Key switchToAll = Key.U;
     public void Init(GameManager gm) => this.gm = gm;
     void Start() { RTgrid = gm.gridManager.RTgrid; }
@@ -28,7 +35,11 @@ public partial class PathManager : MonoBehaviour
     {
         var kb = Keyboard.current;
         if (kb == null) return;
+
         if (kb[switchToACO].wasPressedThisFrame) algorithmMode = AlgorithmMode.ACO;
+        // Dodana obs³uga nowego przycisku dla GA
+        else if (kb[switchToGA].wasPressedThisFrame) algorithmMode = AlgorithmMode.GA;
+        // Przywrócona oryginalna obs³uga dla PSO (jeœli implementacja PSO istnieje)
         else if (kb[switchToPSO].wasPressedThisFrame) algorithmMode = AlgorithmMode.PSO;
         else if (kb[switchToThirdAlgo].wasPressedThisFrame) algorithmMode = AlgorithmMode.Firefly;
         else if (kb[switchToAll].wasPressedThisFrame) algorithmMode = AlgorithmMode.All;
@@ -37,7 +48,7 @@ public partial class PathManager : MonoBehaviour
 
     public void SetShelfPath(int startStep, RobotController robot = null)
     {
-        if (RTgrid[startStep] == null) { Debug.LogError("Grid not initialized!"); return ; }
+        if (RTgrid[startStep] == null) { Debug.LogError("Grid not initialized!"); return; }
 
         Tile startTile;
         Heading startHead;
@@ -65,9 +76,13 @@ public partial class PathManager : MonoBehaviour
                 ACO_Start(startTile, endTile, startHead, startStep, robot);
                 break;
 
+            case AlgorithmMode.GA:
+                Debug.Log($"[GA] Starting shelf path for robot {robot.Id} at step {startStep}");
+                GA_Start(startTile, endTile, startHead, startStep, robot);
+                break;
+
             case AlgorithmMode.PSO:
                 Debug.Log($"[PSO] Starting shelf path for robot {robot.Id} at step {startStep}");
-                endTile = walkableShelf[64];
                 PSO_Start(startTile, endTile, startHead, startStep, robot);
                 break;
             case AlgorithmMode.BFOA:
@@ -81,24 +96,21 @@ public partial class PathManager : MonoBehaviour
 
             case AlgorithmMode.Firefly:
                 Debug.Log($"[Firefly] Starting shelf path for robot {robot.Id} at step {startStep}");
-                //endTile = walkableShelf[64];
-
                 Firefly_Start(startTile, endTile, startHead, startStep, robot);
                 break;
             case AlgorithmMode.All:
                 Debug.Log($"[All] Starting shelf path for robot {robot.Id} at step {startStep}");
                 ACO_Start(startTile, endTile, startHead, startStep, robot);
+                GA_Start(startTile, endTile, startHead, startStep, robot);
                 Firefly_Start(startTile, endTile, startHead, startStep, robot);
                 BFOA_Start(startTile, endTile, startHead, startStep, robot);
                 break;
         }
-
-            //ACO_Start(startTile, endTile, startHead, startStep, robot);
     }
 
     public void SetSpawnpointPath(int startStep, RobotController robot)
     {
-        if (RTgrid[startStep] == null) { Debug.LogError("Grid not initialized!"); return ; }
+        if (RTgrid[startStep] == null) { Debug.LogError("Grid not initialized!"); return; }
 
         Tile startTile;
         Heading startHead;
@@ -121,6 +133,10 @@ public partial class PathManager : MonoBehaviour
             case AlgorithmMode.ACO:
                 Debug.Log($"[ACO] Starting spawnpoint path for robot {robot.Id} at step {startStep}");
                 ACO_Start(startTile, endTile, startHead, startStep, robot);
+                break;
+            case AlgorithmMode.GA:
+                Debug.Log($"[GA] Starting spawnpoint path for robot {robot.Id} at step {startStep}");
+                GA_Start(startTile, endTile, startHead, startStep, robot);
                 break;
             case AlgorithmMode.PSO:
                 Debug.Log($"[PSO] Starting spawnpoint path for robot {robot.Id} at step {startStep}");
@@ -146,12 +162,11 @@ public partial class PathManager : MonoBehaviour
                 BFOA_Start(startTile, endTile, startHead, startStep, robot);
                 break;
         }
-             //ACO_Start(startTile, endTile, startHead, startStep, robot);
     }
 
     public void SetTransferPointPath(int startStep, RobotController robot = null, Tile targetTP = null)
     {
-        if (RTgrid[startStep] == null) { Debug.LogError("Grid not initialized!"); return ; }
+        if (RTgrid[startStep] == null) { Debug.LogError("Grid not initialized!"); return; }
 
         Tile startTile;
         Heading startHead;
@@ -166,7 +181,7 @@ public partial class PathManager : MonoBehaviour
             startTile = robot.lastPlanElement.tile;
             startHead = robot.lastPlanElement.head;
         }
-            
+
         if (targetTP == null)
         {
             var walkableTP = new List<Tile>();
@@ -174,11 +189,15 @@ public partial class PathManager : MonoBehaviour
             targetTP = walkableTP[UnityEngine.Random.Range(0, walkableTP.Count)];
         }
         Tile endTile = targetTP;
-        switch(algorithmMode)
+        switch (algorithmMode)
         {
             case AlgorithmMode.ACO:
                 Debug.Log($"[ACO] Starting transfer point path for robot {robot.Id} at step {startStep}");
                 ACO_Start(startTile, endTile, startHead, startStep, robot);
+                break;
+            case AlgorithmMode.GA:
+                Debug.Log($"[GA] Starting transfer point path for robot {robot.Id} at step {startStep}");
+                GA_Start(startTile, endTile, startHead, startStep, robot);
                 break;
             case AlgorithmMode.PSO:
                 Debug.Log($"[PSO] Starting transfer point path for robot {robot.Id} at step {startStep}");
@@ -203,7 +222,6 @@ public partial class PathManager : MonoBehaviour
                 BFOA_Start(startTile, endTile, startHead, startStep, robot);
                 break;
         }
-        //ACO_Start(startTile, endTile, startHead, startStep, robot);
     }
 
 
@@ -214,7 +232,7 @@ public partial class PathManager : MonoBehaviour
         public Heading head;
         public RobotAction action; // akcja prowadz¹ca do tego stanu
         public int step;
-        public Node(int x, int y, Heading h, RobotAction a, int s ) { this.x = x; this.y = y; this.head = h; this.action = a; this.step = s; }
+        public Node(int x, int y, Heading h, RobotAction a, int s) { this.x = x; this.y = y; this.head = h; this.action = a; this.step = s; }
         public bool Equals(Node other) => x == other.x && y == other.y && head == other.head;
         public override bool Equals(object obj) => obj is Node n && Equals(n);
         public override int GetHashCode() => (x * 73856093) ^ (y * 19349663) ^ ((int)head * 83492791);
@@ -245,15 +263,21 @@ public partial class PathManager : MonoBehaviour
                 {
                     var (nx, ny) = ForwardPos(s.x, s.y, s.head);
 
-                    bool inBounds = nx >= 0 && ny >= 0 && nx < RTgrid[0].GetLength(0) && ny < RTgrid[0].GetLength(1);
+                    int width = RTgrid[0].GetLength(0);
+                    int length = RTgrid[0].GetLength(1);
+
+                    bool inBounds = nx >= 0 && ny >= 0 && nx < width && ny < length;
 
                     if (!inBounds)
                         return (s, false);
                     else
                     {
-                        walkable = RTgrid[s.step + 1][nx, ny].Walkable;
-                        if (!walkable)
-                            return (s, false);
+                        if (s.step + 1 < RTgrid.Count)
+                        {
+                            walkable = RTgrid[s.step + 1][nx, ny].Walkable;
+                            if (!walkable)
+                                return (s, false);
+                        }
                     }
                     return (new Node(nx, ny, s.head, RobotAction.Forward, s.step + 1), true);
                 }
@@ -290,7 +314,7 @@ public partial class PathManager : MonoBehaviour
             facing = (n.head == Heading.East && dx > 0) || (n.head == Heading.West && dx < 0) ? 1.2f : 1f;
         else if (Mathf.Abs(dy) > 0)
             facing = (n.head == Heading.North && dy > 0) || (n.head == Heading.South && dy < 0) ? 1.2f : 1f;
-        return curManhattan - nexManhattan + 1 + facing / ((nexManhattan + 2f)*2);
+        return curManhattan - nexManhattan + 1 + facing / ((nexManhattan + 2f) * 2);
     }
 
     int StateIndex(int x, int y, Heading h, int w, int hgt)
