@@ -1,6 +1,8 @@
-using System;
+Ôªøusing System;
 using System.Collections;
 using System.Collections.Generic;
+using UnityEngine.InputSystem;
+
 using UnityEngine;
 
 public partial class PathManager : MonoBehaviour
@@ -9,12 +11,12 @@ public partial class PathManager : MonoBehaviour
     [Header("Genetic Algorithm")]
     public int populationSize = 100;
     public int gaIterations = 100;
-    [Range(0.01f, 0.9f)] public float crossoverRate = 0.8f; // PrawdopodobieÒstwo krzyøowania
-    [Range(0.001f, 0.5f)] public float mutationRate = 0.05f; // PrawdopodobieÒstwo mutacji
+    [Range(0.01f, 0.9f)] public float crossoverRate = 0.8f; // Prawdopodobie≈Ñstwo krzy≈ºowania
+    [Range(0.001f, 0.5f)] public float mutationRate = 0.05f; // Prawdopodobie≈Ñstwo mutacji
     public int tournamentSize = 5; // Parametr dla selekcji turniejowej
-    public int maxSteps = 100; // Maksymalna d≥ugoúÊ úcieøki/chromosomu
+    public int maxSteps = 100; // Maksymalna d≈Çugo≈õƒá ≈õcie≈ºki/chromosomu
 
-    // --- Struktura Chromosomu (åcieøki) ---
+    // --- Struktura Chromosomu (≈öcie≈ºki) ---
     public class PathChromosome
     {
         public List<RobotAction> actions;
@@ -34,13 +36,13 @@ public partial class PathManager : MonoBehaviour
             {
                 actions = new List<RobotAction>(actions),
                 fitness = fitness,
-                // finalNodes nie musi byÊ klonowane, bo jest generowane przy ocenie
+                // finalNodes nie musi byƒá klonowane, bo jest generowane przy ocenie
             };
         }
     }
 
     // ====================================================================
-    // 1. G£”WNA METODA STARTUJ•CA (Wywo≥ywana z PathManager.cs)
+    // 1. G≈Å√ìWNA METODA STARTUJƒÑCA (Wywo≈Çywana z PathManager.cs)
     // ====================================================================
 
     void GA_Start(Tile start, Tile goal, Heading startHead, int startStep, RobotController robot)
@@ -53,18 +55,18 @@ public partial class PathManager : MonoBehaviour
                 return;
             }
 
-            // Wizualizacja najlepszej úcieøki
-            // Zaznaczanie komÛrek w RTgrid jako BestAlgPath
-            for (int i = 0; i < path.Count; i++)
-            {
-                if (path[i].step < 0 || path[i].step >= RTgrid.Count) continue;
-                // Zak≥adamy, øe RTgrid[step] nie jest null
-                if (RTgrid[path[i].step][path[i].x, path[i].y] != null)
-                {
-                    RTgrid[path[i].step][path[i].x, path[i].y].flags |= TileFlags.BestAlgPath;
-                }
-            }
-            gm.gridManager.RefreshAll(startStep);
+            // Wizualizacja najlepszej ≈õcie≈ºki
+            // Zaznaczanie kom√≥rek w RTgrid jako BestAlgPath
+            //for (int i = 0; i < path.Count; i++)
+            //{
+            //    if (path[i].step < 0 || path[i].step >= RTgrid.Count) continue;
+            //    // Zak≈Çadamy, ≈ºe RTgrid[step] nie jest null
+            //    if (RTgrid[path[i].step][path[i].x, path[i].y] != null)
+            //    {
+            //        RTgrid[path[i].step][path[i].x, path[i].y].flags |= TileFlags.BestAlgPath;
+            //    }
+            //}
+            //gm.gridManager.RefreshAll(startStep);
 
             Debug.LogWarning($"Assigning point path to robot {robot.Id}, path size: {path.Count}");
             gm.robotManager.AssignPlanToRobot(robot, path);
@@ -73,7 +75,7 @@ public partial class PathManager : MonoBehaviour
     }
 
     // ====================================================================
-    // 2. G£”WNY KORUTYNA ALGORYTMU GENETYCZNEGO
+    // 2. G≈Å√ìWNY KORUTYNA ALGORYTMU GENETYCZNEGO
     // ====================================================================
 
     IEnumerator GA_Coroutine(Tile start, Tile goal, Heading startHead, int startStep, RobotController robot, System.Action<List<Node>> onDone)
@@ -81,22 +83,22 @@ public partial class PathManager : MonoBehaviour
         float t0 = Time.realtimeSinceStartup;
 
         // 1. Inicjalizacja
-        // UWAGA: Uøycie startHead.
+        // UWAGA: U≈ºycie startHead.
         List<PathChromosome> population = InitializePopulation(start, startHead, startStep);
         PathChromosome bestChromosome = new PathChromosome();
 
-        // Zapewnienie minimalnej wielkoúci siatki RTgrid dla symulacji
-        gm.gridManager.UpdateRTgrid(startStep + maxSteps);
+        // Zapewnienie minimalnej wielko≈õci siatki RTgrid dla symulacji
+        //gm.gridManager.UpdateRTgrid(startStep + maxSteps);
 
         for (int it = 0; it < gaIterations; it++)
         {
             float tIter = Time.realtimeSinceStartup;
 
             // 2. Ocena (Fitness)
-            // UWAGA: Uøycie startHead.
+            // UWAGA: U≈ºycie startHead.
             EvaluatePopulation(population, start, startHead, (goal.x, goal.y), startStep);
 
-            // Znajdü najlepsze rozwiπzanie w obecnej populacji
+            // Znajd≈∫ najlepsze rozwiƒÖzanie w obecnej populacji
             var currentBest = GetBestChromosome(population);
             if (currentBest.fitness > bestChromosome.fitness)
             {
@@ -104,10 +106,10 @@ public partial class PathManager : MonoBehaviour
                 bestChromosome = currentBest.Clone();
             }
 
-            // Opcjonalne: Sprawdü wczesne zakoÒczenie
+            // Opcjonalne: Sprawd≈∫ wczesne zako≈Ñczenie
             if (bestChromosome.finalNodes != null && bestChromosome.finalNodes.Count > 0)
             {
-                // Musimy upewniÊ siÍ, øe ostatni wÍze≥ faktycznie osiπgnπ≥ cel (lub jest blisko)
+                // Musimy upewniƒá siƒô, ≈ºe ostatni wƒôze≈Ç faktycznie osiƒÖgnƒÖ≈Ç cel (lub jest blisko)
                 var lastNode = bestChromosome.finalNodes[^1];
                 if (lastNode.x == goal.x && lastNode.y == goal.y)
                 {
@@ -119,16 +121,16 @@ public partial class PathManager : MonoBehaviour
             // 3. Selekcja i Tworzenie Nowej Generacji
             List<PathChromosome> newPopulation = new List<PathChromosome>(populationSize);
 
-            // Elitaryzm: Utrzymanie najlepszego rozwiπzania
+            // Elitaryzm: Utrzymanie najlepszego rozwiƒÖzania
             newPopulation.Add(bestChromosome.Clone());
 
             while (newPopulation.Count < populationSize)
             {
-                // Selekcja Turniejowa (Wybierz 2 rodzicÛw)
+                // Selekcja Turniejowa (Wybierz 2 rodzic√≥w)
                 PathChromosome parent1 = TournamentSelection(population).Clone();
                 PathChromosome parent2 = TournamentSelection(population).Clone();
 
-                // Krzyøowanie (Crossover)
+                // Krzy≈ºowanie (Crossover)
                 (PathChromosome child1, PathChromosome child2) = Crossover(parent1, parent2);
 
                 // Mutacja
@@ -141,11 +143,28 @@ public partial class PathManager : MonoBehaviour
 
             population = newPopulation;
             Debug.Log($"[GA] Iter {it} took {(Time.realtimeSinceStartup - tIter) * 1000f} ms. Best Fitness: {bestChromosome.fitness:F2}");
+            Debug.Log($"[GA] Best path length: {bestChromosome.actions.Count}");
+            for (int a = 0; a < bestChromosome.actions.Count; a+=5)
+            {
+                Debug.Log($"    Step {a}: {bestChromosome.actions[a]}");
+            }
 
-            yield return null; // Odczekaj jednπ klatkÍ
+            foreach (var n in bestChromosome.finalNodes)
+                RTgrid[startStep][n.x, n.y].flags |= TileFlags.BestAlgPath;
+            gm.gridManager.RefreshAll(startStep);
+
+            while (Keyboard.current[nextIterationKey].isPressed)
+                yield return null;
+
+            // 2Ô∏è‚É£ Teraz czekamy na naci≈õniƒôcie (prawid≈Çowe przej≈õcie do nastƒôpnej iteracji)
+            while (!Keyboard.current[nextIterationKey].wasPressedThisFrame)
+                yield return null;
+
+            yield return null; // Odczekaj jednƒÖ klatkƒô
         }
+        
 
-        // ZakoÒczenie
+        // Zako≈Ñczenie
         float elapsed = (Time.realtimeSinceStartup - t0) * 1000f;
         Debug.LogWarning($"[GA Timer] GA for robot {robot.Id} took {elapsed:F2} ms");
 
@@ -180,21 +199,21 @@ public partial class PathManager : MonoBehaviour
     {
         foreach (var chromosome in population)
         {
-            // POPRAWKA B£ DU CS1061: Uøywamy startHead
+            // POPRAWKA B≈ÅƒòDU CS1061: U≈ºywamy startHead
             Node current = new Node(start.x, start.y, startHead, RobotAction.Wait, startStep);
             var nodes = new List<Node> { current };
             int pathLength = 0;
             bool reachedGoal = false;
             float collisionPenalty = 0f;
 
-            // Symulacja úcieøki
+            // Symulacja ≈õcie≈ºki
             for (int i = 0; i < maxSteps; i++)
             {
-                RobotAction action = i < chromosome.actions.Count ? chromosome.actions[i] : RobotAction.Wait;
+                RobotAction action = i < chromosome.actions.Count ? chromosome.actions[i] : RobotAction.Wait; //???
 
                 var (next, allowed) = Apply(current, action);
 
-                // Sprawdzenie kolizji ze úcianami/granicami
+                // Sprawdzenie kolizji ze ≈õcianami/granicami
                 if (!allowed)
                 {
                     collisionPenalty += 500f;
@@ -207,7 +226,7 @@ public partial class PathManager : MonoBehaviour
 
                 if (nextTimeStep < RTgrid.Count)
                 {
-                    // Sprawdzenie czy komÛrka jest w granicach siatki RTgrid[nextTimeStep]
+                    // Sprawdzenie czy kom√≥rka jest w granicach siatki RTgrid[nextTimeStep]
                     int gridWidth = RTgrid[nextTimeStep].GetLength(0);
                     int gridHeight = RTgrid[nextTimeStep].GetLength(1);
 
@@ -216,7 +235,7 @@ public partial class PathManager : MonoBehaviour
                         if (RTgrid[nextTimeStep][next.x, next.y].flags.HasFlag(TileFlags.Blocked))
                         {
                             collisionPenalty += 1000f;
-                            // Kontynuujemy, ale z karπ
+                            // Kontynuujemy, ale z karƒÖ
                         }
                     }
                 }
@@ -238,12 +257,12 @@ public partial class PathManager : MonoBehaviour
 
             if (reachedGoal)
             {
-                // Nagroda za dotarcie + nagroda za krÛtkoúÊ
+                // Nagroda za dotarcie + nagroda za kr√≥tko≈õƒá
                 fitness = 2000f + (maxSteps - pathLength);
             }
             else
             {
-                // Kara za odleg≥oúÊ od celu
+                // Kara za odleg≈Ço≈õƒá od celu
                 fitness = 1000f - distToGoal * 10f;
             }
 
@@ -253,7 +272,7 @@ public partial class PathManager : MonoBehaviour
         }
     }
 
-    // --- Znajdü Najlepszy Chromosom ---
+    // --- Znajd≈∫ Najlepszy Chromosom ---
     PathChromosome GetBestChromosome(List<PathChromosome> population)
     {
         PathChromosome best = population[0];
@@ -285,7 +304,7 @@ public partial class PathManager : MonoBehaviour
         return best;
     }
 
-    // --- Krzyøowanie (Single-Point Crossover) ---
+    // --- Krzy≈ºowanie (Single-Point Crossover) ---
     (PathChromosome, PathChromosome) Crossover(PathChromosome p1, PathChromosome p2)
     {
         if (UnityEngine.Random.value > crossoverRate)

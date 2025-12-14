@@ -1057,13 +1057,12 @@ MonoBehaviour:
   Q: 100
   tau0: 0.1
   maxStepsFactor: 0.1
-  bacteriaSteps: 300
-  bacterias: 4
-  chemotaxes: 3
-  reproductions: 20
-  elimAndDisp: 5
-  eliminationProbability: 0.05
-  swimLength: 3
+  populationSize: 100
+  gaIterations: 100
+  crossoverRate: 0.8
+  mutationRate: 0.05
+  tournamentSize: 5
+  maxSteps: 100
   herds: 1
   camels: 20
   camelsteps: 300
@@ -1071,11 +1070,18 @@ MonoBehaviour:
   generations: 70
   firesteps: 300
   firealpha: 1
-  particles: 1
-  maxParticlesSteps: 30
+  GA2populationSize: 100
+  GA2Iterations: 2000
+  GA2crossoverRate: 0.8
+  GA2mutationRate: 0.05
+  GA2tournamentSize: 5
+  GA2maxSteps: 400
+  GA2fitnessPenalty: 250
+  GA2elitismCount: 10
   nextIterationKey: 1
   switchToThirdAlgo: 30
   switchToACO: 29
+  switchToGA: 26
   switchToPSO: 23
   switchToAll: 35
 --- !u!1 &1506708467

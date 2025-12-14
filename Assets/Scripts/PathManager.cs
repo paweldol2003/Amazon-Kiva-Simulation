@@ -78,16 +78,7 @@ public partial class PathManager : MonoBehaviour
 
             case AlgorithmMode.GA:
                 Debug.Log($"[GA] Starting shelf path for robot {robot.Id} at step {startStep}");
-                GA_Start(startTile, endTile, startHead, startStep, robot);
-                break;
-
-            case AlgorithmMode.PSO:
-                Debug.Log($"[PSO] Starting shelf path for robot {robot.Id} at step {startStep}");
-                PSO_Start(startTile, endTile, startHead, startStep, robot);
-                break;
-            case AlgorithmMode.BFOA:
-                Debug.Log($"[BFOA] Starting shelf path for robot {robot.Id} at step {startStep}");
-                BFOA_Start(startTile, endTile, startHead, startStep, robot);
+                GA2_Start(startTile, endTile, startHead, startStep, robot);
                 break;
             case AlgorithmMode.Camel:
                 Debug.Log($"[Camel] Starting shelf path for robot {robot.Id} at step {startStep}");
@@ -101,9 +92,8 @@ public partial class PathManager : MonoBehaviour
             case AlgorithmMode.All:
                 Debug.Log($"[All] Starting shelf path for robot {robot.Id} at step {startStep}");
                 ACO_Start(startTile, endTile, startHead, startStep, robot);
-                GA_Start(startTile, endTile, startHead, startStep, robot);
+                //GA_Start(startTile, endTile, startHead, startStep, robot);
                 Firefly_Start(startTile, endTile, startHead, startStep, robot);
-                BFOA_Start(startTile, endTile, startHead, startStep, robot);
                 break;
         }
     }
@@ -136,21 +126,12 @@ public partial class PathManager : MonoBehaviour
                 break;
             case AlgorithmMode.GA:
                 Debug.Log($"[GA] Starting spawnpoint path for robot {robot.Id} at step {startStep}");
-                GA_Start(startTile, endTile, startHead, startStep, robot);
-                break;
-            case AlgorithmMode.PSO:
-                Debug.Log($"[PSO] Starting spawnpoint path for robot {robot.Id} at step {startStep}");
-                PSO_Start(startTile, endTile, startHead, startStep, robot);
-                break;
-            case AlgorithmMode.BFOA:
-                Debug.Log($"[BFOA] Starting spawnpoint path for robot {robot.Id} at step {startStep}");
-                BFOA_Start(startTile, endTile, startHead, startStep, robot);
+                GA2_Start(startTile, endTile, startHead, startStep, robot);
                 break;
             case AlgorithmMode.Camel:
                 Debug.Log($"[Camel] Starting spawnpoint path for robot {robot.Id} at step {startStep}");
                 Camel_Start(startTile, endTile, startHead, startStep, robot);
                 break;
-
             case AlgorithmMode.Firefly:
                 Debug.Log($"[Firefly] Starting spawnpoint path for robot {robot.Id} at step {startStep}");
                 Firefly_Start(startTile, endTile, startHead, startStep, robot);
@@ -159,7 +140,6 @@ public partial class PathManager : MonoBehaviour
                 Debug.Log($"[All] Starting spawnpoint path for robot {robot.Id} at step {startStep}");
                 ACO_Start(startTile, endTile, startHead, startStep, robot);
                 Firefly_Start(startTile, endTile, startHead, startStep, robot);
-                BFOA_Start(startTile, endTile, startHead, startStep, robot);
                 break;
         }
     }
@@ -197,15 +177,7 @@ public partial class PathManager : MonoBehaviour
                 break;
             case AlgorithmMode.GA:
                 Debug.Log($"[GA] Starting transfer point path for robot {robot.Id} at step {startStep}");
-                GA_Start(startTile, endTile, startHead, startStep, robot);
-                break;
-            case AlgorithmMode.PSO:
-                Debug.Log($"[PSO] Starting transfer point path for robot {robot.Id} at step {startStep}");
-                PSO_Start(startTile, endTile, startHead, startStep, robot);
-                break;
-            case AlgorithmMode.BFOA:
-                Debug.Log($"[BFOA] Starting transfer point path for robot {robot.Id} at step {startStep}");
-                BFOA_Start(startTile, endTile, startHead, startStep, robot);
+                GA2_Start(startTile, endTile, startHead, startStep, robot);
                 break;
             case AlgorithmMode.Camel:
                 Debug.Log($"[Camel] Starting transfer point path for robot {robot.Id} at step {startStep}");
@@ -219,7 +191,6 @@ public partial class PathManager : MonoBehaviour
                 Debug.Log($"[All] Starting transfer point path for robot {robot.Id} at step {startStep}");
                 ACO_Start(startTile, endTile, startHead, startStep, robot);
                 Firefly_Start(startTile, endTile, startHead, startStep, robot);
-                BFOA_Start(startTile, endTile, startHead, startStep, robot);
                 break;
         }
     }
