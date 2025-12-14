@@ -7,7 +7,6 @@ using UnityEngine.InputSystem; // New Input System
 public partial class PathManager : MonoBehaviour
 {
     private GameManager gm;
-    //private Tile[,] grid;
     private List<Tile[,]> RTgrid; //Real time grid
     public enum Heading { North = 0, East = 1, South = 2, West = 3 }
     public enum RobotAction { Forward = 0, TurnLeft = 1, TurnRight = 2, Wait = 3 }
@@ -64,36 +63,20 @@ public partial class PathManager : MonoBehaviour
                 Debug.Log($"[ACO] Starting shelf path for robot {robot.Id} at step {startStep}");
                 ACO_Start(startTile, endTile, startHead, startStep, robot);
                 break;
-
-            case AlgorithmMode.PSO:
-                Debug.Log($"[PSO] Starting shelf path for robot {robot.Id} at step {startStep}");
-                endTile = walkableShelf[64];
-                PSO_Start(startTile, endTile, startHead, startStep, robot);
-                break;
-            case AlgorithmMode.BFOA:
-                Debug.Log($"[BFOA] Starting shelf path for robot {robot.Id} at step {startStep}");
-                BFOA_Start(startTile, endTile, startHead, startStep, robot);
-                break;
             case AlgorithmMode.Camel:
                 Debug.Log($"[Camel] Starting shelf path for robot {robot.Id} at step {startStep}");
                 Camel_Start(startTile, endTile, startHead, startStep, robot);
                 break;
-
             case AlgorithmMode.Firefly:
                 Debug.Log($"[Firefly] Starting shelf path for robot {robot.Id} at step {startStep}");
-                //endTile = walkableShelf[64];
-
                 Firefly_Start(startTile, endTile, startHead, startStep, robot);
                 break;
             case AlgorithmMode.All:
                 Debug.Log($"[All] Starting shelf path for robot {robot.Id} at step {startStep}");
                 ACO_Start(startTile, endTile, startHead, startStep, robot);
                 Firefly_Start(startTile, endTile, startHead, startStep, robot);
-                BFOA_Start(startTile, endTile, startHead, startStep, robot);
                 break;
         }
-
-            //ACO_Start(startTile, endTile, startHead, startStep, robot);
     }
 
     public void SetSpawnpointPath(int startStep, RobotController robot)
@@ -122,14 +105,6 @@ public partial class PathManager : MonoBehaviour
                 Debug.Log($"[ACO] Starting spawnpoint path for robot {robot.Id} at step {startStep}");
                 ACO_Start(startTile, endTile, startHead, startStep, robot);
                 break;
-            case AlgorithmMode.PSO:
-                Debug.Log($"[PSO] Starting spawnpoint path for robot {robot.Id} at step {startStep}");
-                PSO_Start(startTile, endTile, startHead, startStep, robot);
-                break;
-            case AlgorithmMode.BFOA:
-                Debug.Log($"[BFOA] Starting spawnpoint path for robot {robot.Id} at step {startStep}");
-                BFOA_Start(startTile, endTile, startHead, startStep, robot);
-                break;
             case AlgorithmMode.Camel:
                 Debug.Log($"[Camel] Starting spawnpoint path for robot {robot.Id} at step {startStep}");
                 Camel_Start(startTile, endTile, startHead, startStep, robot);
@@ -143,10 +118,8 @@ public partial class PathManager : MonoBehaviour
                 Debug.Log($"[All] Starting spawnpoint path for robot {robot.Id} at step {startStep}");
                 ACO_Start(startTile, endTile, startHead, startStep, robot);
                 Firefly_Start(startTile, endTile, startHead, startStep, robot);
-                BFOA_Start(startTile, endTile, startHead, startStep, robot);
                 break;
         }
-             //ACO_Start(startTile, endTile, startHead, startStep, robot);
     }
 
     public void SetTransferPointPath(int startStep, RobotController robot = null, Tile targetTP = null)
@@ -180,14 +153,6 @@ public partial class PathManager : MonoBehaviour
                 Debug.Log($"[ACO] Starting transfer point path for robot {robot.Id} at step {startStep}");
                 ACO_Start(startTile, endTile, startHead, startStep, robot);
                 break;
-            case AlgorithmMode.PSO:
-                Debug.Log($"[PSO] Starting transfer point path for robot {robot.Id} at step {startStep}");
-                PSO_Start(startTile, endTile, startHead, startStep, robot);
-                break;
-            case AlgorithmMode.BFOA:
-                Debug.Log($"[BFOA] Starting transfer point path for robot {robot.Id} at step {startStep}");
-                BFOA_Start(startTile, endTile, startHead, startStep, robot);
-                break;
             case AlgorithmMode.Camel:
                 Debug.Log($"[Camel] Starting transfer point path for robot {robot.Id} at step {startStep}");
                 Camel_Start(startTile, endTile, startHead, startStep, robot);
@@ -200,10 +165,8 @@ public partial class PathManager : MonoBehaviour
                 Debug.Log($"[All] Starting transfer point path for robot {robot.Id} at step {startStep}");
                 ACO_Start(startTile, endTile, startHead, startStep, robot);
                 Firefly_Start(startTile, endTile, startHead, startStep, robot);
-                BFOA_Start(startTile, endTile, startHead, startStep, robot);
                 break;
         }
-        //ACO_Start(startTile, endTile, startHead, startStep, robot);
     }
 
 
