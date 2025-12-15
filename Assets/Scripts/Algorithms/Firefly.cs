@@ -29,20 +29,6 @@ public partial class PathManager : MonoBehaviour
             }
 
             Debug.Log($"[Firefly] Path found for robot {robot.Id}, length={path.Count}");
-
-            for (int i = 0; i < path.Count - 1; i++)
-            {
-                var a = path[i];
-                var b = path[i + 1];
-
-                if (a.step >= 0 && a.step < RTgrid.Count)
-                {
-                    RTgrid[a.step][a.x, a.y].flags |= TileFlags.Blocked;
-                    RTgrid[a.step][b.x, b.y].flags |= TileFlags.Blocked;
-                    gm.gridManager.UpdateRTgrid(a.step, RTgrid[a.step]);
-                }
-            }
-
             gm.robotManager.AssignPlanToRobot(robot, path);
             robot.destinations.Dequeue();
         }));
@@ -50,6 +36,9 @@ public partial class PathManager : MonoBehaviour
     IEnumerator Firefly_Coroutine(Tile start, Tile goal, Heading startHead, int startStep,
                                RobotController robot, Action<List<Node>> onDone)
     {
+        float t0 = Time.realtimeSinceStartup;   // <-- START pomiaru
+
+
         List<Node> bestGlobalPath = null;
         float bestGlobalFitness = 0f;
         List<Node> finalBestPath = null;
@@ -62,6 +51,11 @@ public partial class PathManager : MonoBehaviour
 
         // globalna mapa światła (wykorzystywana przez wszystkie generacje)
         float[,] lightPath = new float[width, height];
+        // Tablica list (do reużycia)
+        List<Node>[] sharedNexts = new List<Node>[_cachedActions.Length];
+        for (int i = 0; i < _cachedActions.Length; i++) sharedNexts[i] = new List<Node>(2); // capacity 2 (bo max forward bonus)
+
+        float[] sharedWeights = new float[_cachedActions.Length];
 
         for (int g = 0; g < generations; g++)
         {
@@ -75,7 +69,10 @@ public partial class PathManager : MonoBehaviour
             // 2️⃣ WYZNACZAMY NOWE ŚCIEŻKI KORZYSTAJĄC ZE STAREGO ŚWIATŁA
             for (int i = 0; i < fireflies; i++)
             {
-                List<Node> fireflyPath = FA_SetStartPath(start, goal, startHead, startStep, lightPath);
+                List<Node> fireflyPath = FA_SetStartPath(
+                start, goal, startHead, startStep, lightPath,
+                sharedNexts, sharedWeights
+                );
                 float fit = Fitness(fireflyPath, goal, start);
 
 
@@ -129,38 +126,35 @@ public partial class PathManager : MonoBehaviour
         {
             finalBestPath = bestGlobalPath;
         }
+
+        float elapsed = (Time.realtimeSinceStartup - t0) * 1000f;
+        Debug.LogWarning($"[Firefly Timer] Firefly Coroutine for robot {robot.Id} took {elapsed:F2} ms");
         onDone?.Invoke(finalBestPath);
         yield break;
     }
 
-    List<Node> FA_SetStartPath(Tile start, Tile goal, Heading startHead, int startStep, float[,] lightPath)
+    List<Node> FA_SetStartPath(Tile start, Tile goal, Heading startHead, int startStep, float[,] lightPath,
+                                     List<Node>[] nextsBuffer, float[] weightsBuffer)
     {
-        List<Node> path = new List<Node>();
-
+        List<Node> path = new List<Node>(firesteps);
 
         Node cur = new Node(start.x, start.y, startHead, RobotAction.Wait, startStep);
         path.Add(cur);
 
         int stepsTaken = 0;
+        int A = _cachedActions.Length;
 
         while (!(cur.x == goal.x && cur.y == goal.y) && stepsTaken < firesteps)
         {
-            List<RobotAction> actions = new List<RobotAction>
-            {
-                RobotAction.Forward,
-                RobotAction.TurnLeft,
-                RobotAction.TurnRight,
-                RobotAction.Wait
-            };
+            for (int i = 0; i < A; i++) nextsBuffer[i].Clear();
+            Array.Clear(weightsBuffer, 0, A);
 
-            int A = actions.Count;
+            //// nexts[i] = lista nodów generowanych przez akcję i
+            //List<Node>[] nexts = new List<Node>[A];
+            //for (int i = 0; i < A; i++)
+            //    nexts[i] = new List<Node>();
 
-            // nexts[i] = lista nodów generowanych przez akcję i
-            List<Node>[] nexts = new List<Node>[A];
-            for (int i = 0; i < A; i++)
-                nexts[i] = new List<Node>();
-
-            float[] weight = new float[A];
+            //float[] weight = new float[A];
             float sum = 0f;
 
             // ----------------------------------------
@@ -168,31 +162,23 @@ public partial class PathManager : MonoBehaviour
             // ----------------------------------------
             for (int i = 0; i < A; i++)
             {
-                var action = actions[i];
-                bool allowed;
+                var action = _cachedActions[i];
 
-                (Node nxt, bool ok) = Apply(cur, action);
-                allowed = ok;
-
+                (Node nxt, bool allowed) = Apply(cur, action);
                 if (!allowed)
                 {
-                    weight[i] = 0f;
+                    weightsBuffer[i] = 0f;
                     //Debug.Log($"[FA] action={action} → NOT ALLOWED");
                     continue;
                 }
 
-                nexts[i].Add(nxt);
+                nextsBuffer[i].Add(nxt);
 
                 // --- HEURYSTYKA ---
                 float h = FAHeuristicDesirability(cur, nxt, (goal.x, goal.y));
-
-                // --- ŚWIATŁO ---
                 float L = 0f;
 
-                if (action == RobotAction.Forward)
-                {
-                    L = lightPath[nxt.x, nxt.y];
-                }
+                if (action == RobotAction.Forward) L = lightPath[nxt.x, nxt.y];
 
                 // suma bazowa
                 float w = h;
@@ -210,7 +196,7 @@ public partial class PathManager : MonoBehaviour
                     (Node nxtfwd, bool okf) = Apply(nxt, RobotAction.Forward);
                     if (okf)
                     {
-                        nexts[i].Add(nxtfwd);
+                        nextsBuffer[i].Add(nxtfwd);
 
                         float h2 = FAHeuristicDesirability(nxt, nxtfwd, (goal.x, goal.y));
                         float L2 = lightPath[nxtfwd.x, nxtfwd.y];
@@ -228,7 +214,7 @@ public partial class PathManager : MonoBehaviour
                     }
                 }
 
-                weight[i] = w;
+                weightsBuffer[i] = w;
                 sum += w;
 
                 //Debug.Log(
@@ -258,7 +244,7 @@ public partial class PathManager : MonoBehaviour
 
             for (int i = 0; i < A; i++)
             {
-                acc += weight[i];
+                acc += weightsBuffer[i];
                 if (r <= acc)
                 {
                     chosen = i;
@@ -266,19 +252,15 @@ public partial class PathManager : MonoBehaviour
                 }
             }
 
-            // ----------------------------------------
-            // DODAJEMY WSZYSTKIE NASTĘPNIKI ZWYBRANEJ AKCJI
-            // ----------------------------------------
-            foreach (var n in nexts[chosen])
+            var chosenNodes = nextsBuffer[chosen];
+            for (int k = 0; k < chosenNodes.Count; k++)
             {
-                path.Add(n);
-                //Debug.Log($"[FA] Chosen action {n.action}");
+                path.Add(chosenNodes[k]);
                 stepsTaken++;
             }
 
-
-            // ustawiamy aktualnego noda na ostatni z listy
-            cur = nexts[chosen][nexts[chosen].Count - 1];
+            // Ustawiamy cur na ostatni dodany element
+            cur = chosenNodes[chosenNodes.Count - 1];
 
         }
         //Debug.Log($"[Firefly] Steps taken: {stepsTaken}");

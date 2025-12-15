@@ -13,8 +13,7 @@ public partial class PathManager : MonoBehaviour
     [Range(0.01f, 0.99f)] public float evaporation = 0.5f;
     public float Q = 100f;
     public float tau0 = 0.1f;
-    public float maxStepsFactor = 0.25f; // limit kroków = maxStepsFactor * (w*h)
-
+    public int ACOMaxSteps = 300;
     void ACO_Start(Tile start, Tile goal, Heading startHead, int startStep, RobotController robot)
     {
         //System.Action<List<Node>> onDone;
@@ -25,23 +24,6 @@ public partial class PathManager : MonoBehaviour
                 Debug.LogError($"No path found for robot {robot.Id} to point.");
                 return;
             }
-
-            //for (int i = 0; i < path.Count - 1; i++)
-            //{
-            //    var node = path[i];
-            //    var nxtnode = path[i + 1];
-
-            //    int step = node.step;
-            //    if (step < 0 || step >= RTgrid.Count) continue;
-
-            //    var gridStep = RTgrid[step];
-
-            //    gridStep[node.x, node.y].flags |= TileFlags.Blocked;
-            //    gridStep[nxtnode.x, nxtnode.y].flags |= TileFlags.Blocked;
-
-            //    gm.gridManager.UpdateRTgrid(step, gridStep);
-            //}
-
             Debug.LogWarning($"Assigning point path to robot {robot.Id}, path size: {path.Count}");
             gm.robotManager.AssignPlanToRobot(robot, path);
             robot.destinations.Dequeue();
@@ -63,11 +45,9 @@ public partial class PathManager : MonoBehaviour
                 tau[s, a] = tau0;
 
         List<Node> bestPath = null;
-        int maxSteps = (int)Mathf.Max(32, maxStepsFactor * w * h);
-        Debug.LogWarning($"[Path Manager] maxSteps={maxSteps}");
-
         //CA£A ITERACJA
-        for (int it = 0; it < acoiterations; it++)
+        int it = 0;
+        for (; it < acoiterations; it++)
         {
             float tIter = Time.realtimeSinceStartup;
 
@@ -81,12 +61,8 @@ public partial class PathManager : MonoBehaviour
             {
                 float tAnt = Time.realtimeSinceStartup;
                 bool checktimers = (k % 5) == 0; // co pi¹ta mrówka sprawdza czas
-                var nodes = ConstructAntPath(new Node(start.x, start.y, startHead, RobotAction.Wait, startStep), (goal.x, goal.y), tau, maxSteps, startStep, checktimers);
+                var nodes = ConstructAntPath(new Node(start.x, start.y, startHead, RobotAction.Wait, startStep), (goal.x, goal.y), tau, startStep, checktimers);
                 if (nodes != null && (bestPath == null || nodes.Count < bestPath.Count)) bestPath = nodes;
-
-                //if(nodes != null) Debug.Log($"[ACO] Ant {k} found path of length {nodes.Count} in iteration {it} (best so far: {bestPath.Count})");
-                //else Debug.Log($"[ACO] Ant {k} found NO PATH in iteration {it})");
-
             }
             // 3) Globalna depozycja na best-so-far
             if (bestPath != null && bestPath.Count > 1)
@@ -96,10 +72,10 @@ public partial class PathManager : MonoBehaviour
                 {
                     var from = bestPath[i];
                     var to = bestPath[i + 1];
-                    var act = InferAction(from, to);
+                    var act = ACO_InferAction(from, to);
                     if ((int)act >= 0)
                     {
-                        int si = StateIndex(from.x, from.y, from.head, w, h);
+                        int si = ACO_StateIndex(from.x, from.y, from.head, w, h);
                         tau[si, (int)act] += deposit;
                     }
                 }
@@ -111,7 +87,7 @@ public partial class PathManager : MonoBehaviour
             RTgrid[startStep][n.x, n.y].flags |= TileFlags.BestAlgPath;
         gm.gridManager.RefreshAll(startStep);
         float elapsed = (Time.realtimeSinceStartup - t0) * 1000f;
-        Debug.LogWarning($"[ACO Timer] ACO_Interactive for robot {robot.Id} took {elapsed:F2} ms");
+        Debug.LogWarning($"[ACO Timer] ACO_Interactive for robot {robot.Id} took {elapsed:F2} ms and {it} iterations");
 
         onDone?.Invoke(bestPath);
         yield break;
@@ -122,7 +98,6 @@ public partial class PathManager : MonoBehaviour
                                 Node start,
                                 (int gx, int gy) goal,
                                 float[,] tau,
-                                int maxSteps,
                                 int startStep,
                                 bool checktimers)
     {
@@ -135,7 +110,7 @@ public partial class PathManager : MonoBehaviour
         if (checktimers)
             antStart = Time.realtimeSinceStartup;
 
-        for (int s = startStep; s < (maxSteps + startStep); s++)
+        for (int s = startStep; s < (ACOMaxSteps + startStep); s++)
         {
             if (cur.x == goal.gx && cur.y == goal.gy)
             {
@@ -150,18 +125,18 @@ public partial class PathManager : MonoBehaviour
             float stepStart = 0f;
             if (checktimers) stepStart = Time.realtimeSinceStartup;
 
-            var actions = new List<RobotAction> { RobotAction.Forward, RobotAction.TurnLeft, RobotAction.TurnRight, RobotAction.Wait };
-            int si = StateIndex(cur.x, cur.y, cur.head, w, h);
+            //var actions = new List<RobotAction> { RobotAction.Forward, RobotAction.TurnLeft, RobotAction.TurnRight, RobotAction.Wait };
+            int si = ACO_StateIndex(cur.x, cur.y, cur.head, w, h);
             float sum = 0f;
 
-            var weights = new float[actions.Count];
-            var nexts = new Node[actions.Count];
+            var weights = new float[4];
+            var nexts = new Node[4];
 
-            gm.gridManager.UpdateRTgrid(s + 1);
+            //gm.gridManager.UpdateRTgrid(s + 1);
 
-            for (int i = 0; i < actions.Count; i++)
+            for (int i = 0; i < _cachedActions.Length; i++)
             {
-                var a = actions[i];
+                var a = _cachedActions[i];
                 var (nxt, allowed) = Apply(cur, a);
                 if (!allowed)
                 {
@@ -170,7 +145,7 @@ public partial class PathManager : MonoBehaviour
                 }
 
                 float tau_ = Mathf.Max(1e-6f, tau[si, (int)a]);
-                float eta = HeuristicDesirability(cur, nxt, goal);
+                float eta = ACO_HeuristicDesirability(cur, nxt, goal);
                 float wgt = Mathf.Pow(tau_, alpha) * Mathf.Pow(eta, beta);
 
                 weights[i] = wgt;
@@ -209,5 +184,40 @@ public partial class PathManager : MonoBehaviour
         }
 
         return null;
+    }
+
+    float ACO_HeuristicDesirability(Node c, Node n, (int gx, int gy) goal)
+    {
+        // im bli¿ej celu tym lepiej, delikatna premia za „patrzenie” w kierunku celu
+        float curManhattan = Mathf.Abs(c.x - goal.gx) + Mathf.Abs(c.y - goal.gy);
+        float nexManhattan = Mathf.Abs(n.x - goal.gx) + Mathf.Abs(n.y - goal.gy);
+        float facing = 1f;
+
+        int dx = goal.gx - n.x, dy = goal.gy - n.y;
+        if (Mathf.Abs(dx) > Mathf.Abs(dy))
+            facing = (n.head == Heading.East && dx > 0) || (n.head == Heading.West && dx < 0) ? 1.2f : 1f;
+        else if (Mathf.Abs(dy) > 0)
+            facing = (n.head == Heading.North && dy > 0) || (n.head == Heading.South && dy < 0) ? 1.2f : 1f;
+        return curManhattan - nexManhattan + 1 + facing / ((nexManhattan + 2f) * 2);
+    }
+    RobotAction ACO_InferAction(Node from, Node to)
+    {
+        // okreœla jak¹ akcjê trzeba wykonaæ, aby przejœæ ze stanu from do stanu to
+        if (from.x == to.x && from.y == to.y)
+        {
+            if (to.head == TurnLeft(from.head)) return RobotAction.TurnLeft;
+            if (to.head == TurnRight(from.head)) return RobotAction.TurnRight;
+            if (to.head == from.head) return RobotAction.Wait;
+            return (RobotAction)(-1);
+        }
+        var (fx, fy) = ForwardPos(from.x, from.y, from.head);
+        if (fx == to.x && fy == to.y && to.head == from.head) return RobotAction.Forward;
+        return (RobotAction)(-1);
+    }
+
+    int ACO_StateIndex(int x, int y, Heading h, int w, int hgt)
+    {
+        // (x,y,heading) -> [0 .. w*h*4), indeks 1D
+        return ((y * w) + x) * 4 + (int)h;
     }
 }

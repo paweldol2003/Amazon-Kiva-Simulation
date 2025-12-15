@@ -11,14 +11,14 @@ public partial class PathManager : MonoBehaviour
     public enum Heading { North = 0, East = 1, South = 2, West = 3 }
     public enum RobotAction { Forward = 0, TurnLeft = 1, TurnRight = 2, Wait = 3 }
 
-    private enum AlgorithmMode { ACO = 0, PSO = 1, Firefly = 2, BFOA = 3, Camel = 4, All = 5 }
-    private AlgorithmMode algorithmMode = AlgorithmMode.ACO;
+    private enum AlgorithmMode { ACO = 0, Firefly = 2, Camel = 4, All = 5 }
+    private AlgorithmMode algorithmMode = AlgorithmMode.Firefly;
 
     [Header("Controls")]
     public Key nextIterationKey = Key.Space;
     public Key switchToThirdAlgo = Key.P;
     public Key switchToACO = Key.O;
-    public Key switchToPSO = Key.I;
+    public Key switchToCamel = Key.I;
     public Key switchToAll = Key.U;
     public void Init(GameManager gm) => this.gm = gm;
     void Start() { RTgrid = gm.gridManager.RTgrid; }
@@ -28,7 +28,7 @@ public partial class PathManager : MonoBehaviour
         var kb = Keyboard.current;
         if (kb == null) return;
         if (kb[switchToACO].wasPressedThisFrame) algorithmMode = AlgorithmMode.ACO;
-        else if (kb[switchToPSO].wasPressedThisFrame) algorithmMode = AlgorithmMode.PSO;
+        else if (kb[switchToCamel].wasPressedThisFrame) algorithmMode = AlgorithmMode.Camel;
         else if (kb[switchToThirdAlgo].wasPressedThisFrame) algorithmMode = AlgorithmMode.Firefly;
         else if (kb[switchToAll].wasPressedThisFrame) algorithmMode = AlgorithmMode.All;
     }
@@ -183,6 +183,14 @@ public partial class PathManager : MonoBehaviour
         public override int GetHashCode() => (x * 73856093) ^ (y * 19349663) ^ ((int)head * 83492791);
     }
 
+    private static readonly RobotAction[] _cachedActions = new RobotAction[]
+    {
+    RobotAction.Forward,
+    RobotAction.TurnLeft,
+    RobotAction.TurnRight,
+    RobotAction.Wait
+    };
+
 
     // ======= Akcje / przejœcia =======
     (Node next, bool allowed) Apply(Node s, RobotAction a)
@@ -237,43 +245,5 @@ public partial class PathManager : MonoBehaviour
             case Heading.West: return (x - 1, y);
         }
         return (x, y);
-    }
-
-
-    // ======= Heurystyka / indeksy / pomocnicze =======
-    float HeuristicDesirability(Node c, Node n, (int gx, int gy) goal)
-    {
-        // im bli¿ej celu tym lepiej, delikatna premia za „patrzenie” w kierunku celu
-        float curManhattan = Mathf.Abs(c.x - goal.gx) + Mathf.Abs(c.y - goal.gy);
-        float nexManhattan = Mathf.Abs(n.x - goal.gx) + Mathf.Abs(n.y - goal.gy);
-        float facing = 1f;
-
-        int dx = goal.gx - n.x, dy = goal.gy - n.y;
-        if (Mathf.Abs(dx) > Mathf.Abs(dy))
-            facing = (n.head == Heading.East && dx > 0) || (n.head == Heading.West && dx < 0) ? 1.2f : 1f;
-        else if (Mathf.Abs(dy) > 0)
-            facing = (n.head == Heading.North && dy > 0) || (n.head == Heading.South && dy < 0) ? 1.2f : 1f;
-        return curManhattan - nexManhattan + 1 + facing / ((nexManhattan + 2f)*2);
-    }
-
-    int StateIndex(int x, int y, Heading h, int w, int hgt)
-    {
-        // (x,y,heading) -> [0 .. w*h*4), indeks 1D
-        return ((y * w) + x) * 4 + (int)h;
-    }
-
-    RobotAction InferAction(Node from, Node to)
-    {
-        // okreœla jak¹ akcjê trzeba wykonaæ, aby przejœæ ze stanu from do stanu to
-        if (from.x == to.x && from.y == to.y)
-        {
-            if (to.head == TurnLeft(from.head)) return RobotAction.TurnLeft;
-            if (to.head == TurnRight(from.head)) return RobotAction.TurnRight;
-            if (to.head == from.head) return RobotAction.Wait;
-            return (RobotAction)(-1);
-        }
-        var (fx, fy) = ForwardPos(from.x, from.y, from.head);
-        if (fx == to.x && fy == to.y && to.head == from.head) return RobotAction.Forward;
-        return (RobotAction)(-1);
     }
 }

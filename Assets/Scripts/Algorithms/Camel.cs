@@ -12,6 +12,7 @@ public partial class PathManager : MonoBehaviour
     public int herds = 5;
     public int camels = 20;
     public int camelsteps = 32;
+    public int camelStepsToAssign = 3;
 
     void Camel_Start(Tile start, Tile goal, Heading startHead, int startStep, RobotController robot)
     {
@@ -23,23 +24,6 @@ public partial class PathManager : MonoBehaviour
                 Debug.LogError($"No path found for robot {robot.Id} to point.");
                 return;
             }
-
-            //for (int i = 0; i < path.Count - 1; i++)
-            //{
-            //    var node = path[i];
-            //    var nxtnode = path[i + 1];
-
-            //    int step = node.step;
-            //    if (step < 0 || step >= RTgrid.Count) continue;
-
-            //    var gridStep = RTgrid[step];
-
-            //    gridStep[node.x, node.y].flags |= TileFlags.Blocked;
-            //    gridStep[nxtnode.x, nxtnode.y].flags |= TileFlags.Blocked;
-
-            //    gm.gridManager.UpdateRTgrid(step, gridStep);
-            //}
-
             Debug.LogWarning($"Assigning point path to robot {robot.Id}, path size: {path.Count}");
             gm.robotManager.AssignPlanToRobot(robot, path);
             robot.destinations.Dequeue();
@@ -62,16 +46,24 @@ public partial class PathManager : MonoBehaviour
         {
             List<Node> herdPath = new List<Node>();
             herdPath.Add(new Node(start.x, start.y, startHead, RobotAction.Wait, startStep));
+            RTgrid[startStep] = gm.gridManager.CloneStep(snapshot);
+            int safetyCounter = 0;
             while (herdPath[herdPath.Count - 1].x != goal.x || herdPath[herdPath.Count - 1].y != goal.y)
             {
-                RTgrid[startStep] = gm.gridManager.CloneStep(snapshot);
-
+                if (safetyCounter++ > 1000)
+                {
+                    Debug.LogError("Safety break: Infinite loop detected in herd pathfinding.");
+                    break;
+                }
                 Node lastHerdNode = herdPath[herdPath.Count - 1];
                 int herdStartStep = lastHerdNode.step;
                 Tile herdStart = RTgrid[herdStartStep][lastHerdNode.x, lastHerdNode.y];
                 Dictionary<Node, float> humiditySum = new Dictionary<Node, float>();
-                Node bestNextNode = default;
+
                 float bestHumidity = float.NegativeInfinity;
+
+                List<Node> bestSegment = new List<Node>();
+                bestSegment.Clear(); // Czyścimy poprzedni "najlepszy" wynik
 
                 for (int c = 0; c < camels; c++)
                 {
@@ -85,32 +77,27 @@ public partial class PathManager : MonoBehaviour
                         continue;
                     }
 
-                    Node camelNext = camelPath[0];
                     if (humidity > bestHumidity)
                     {
-                        bestNextNode = camelNext;
                         bestHumidity = humidity;
+                        bestSegment.Clear(); // Czyścimy TYLKO gdy znaleźliśmy lepszego kandydata
+
+                        // Dodajemy nowy najlepszy segment
+                        int segmentLength = Mathf.Min(camelPath.Count, camelStepsToAssign);
+                        for (int i = 0; i < segmentLength; i++)
+                            bestSegment.Add(camelPath[i]);
                     }
+                    //foreach (var n in camelPath)
+                    //    RTgrid[startStep][n.x, n.y].flags |= TileFlags.AlgPath;
+                    //gm.gridManager.RefreshAll(startStep);
 
-                    //if (!humiditySum.ContainsKey(camelNext))
-                    //    humiditySum[camelNext] = 0f;
-
-                    //humiditySum[camelNext] += humidity;
-                    foreach (var n in camelPath)
-                        RTgrid[startStep][n.x, n.y].flags |= TileFlags.AlgPath;
                 }
-
-
-
-                //foreach (var kv in humiditySum)
-                //{
-                //    if (kv.Value > bestHumidity)
-                //    {
-                //        bestHumidity = kv.Value;
-                //        bestNextNode = kv.Key;
-                //    }
-                //}
-                herdPath.Add(bestNextNode);
+                if (bestSegment.Count == 0)
+                {
+                    Debug.LogError($"[Camel] Stuck! No camel found a valid path from ({lastHerdNode.x},{lastHerdNode.y}). Breaking loop.");
+                    break; // Przerywamy pętlę, żeby nie zawiesić Unity
+                }
+                herdPath.AddRange(bestSegment);
                 //Debug.LogWarning($"[Camel] Herd {h}, added node ({bestNextNode.x},{bestNextNode.y},{bestNextNode.action}) with humidity {bestHumidity:F2}");
                 foreach (var n in herdPath)
                     RTgrid[startStep][n.x, n.y].flags |= TileFlags.BestAlgPath;
@@ -136,115 +123,72 @@ public partial class PathManager : MonoBehaviour
         onDone?.Invoke(bestPath);
 
         yield return null;
-    }
+    }    
 
+    // Pola klasy do reużywania (Cache), żeby nie robić 'new List'
+    private List<Node> _reusablePathList = new List<Node>(64);
+    private List<Node>[] _reusableNexts = new List<Node>[]{ new List<Node>(4), new List<Node>(4), new List<Node>(4), new List<Node>(4)};
     List<Node> Camel_SetPath(Tile start, Tile goal, Heading startHead, int startStep, Node cur)
     {
-        List<Node> path = new List<Node>();
-        //int stepsTaken = cur.step-startStep;
+        // Zamiast new List<Node>(), używamy nowej, ale lokalnie (jeśli musisz zwracać nową instancję)
+        // LUB lepiej: przekazuj listę do wypełnienia jako argument.
+        // Tutaj założę wersję prostszą:
+        List<Node> path = new List<Node>(camelsteps); // Z góry alokuj pojemność!
+
         int stepsTaken = 0;
-        //Debug.Log($"[Camel] Steps taken so far: {stepsTaken}");
 
-        while (!(cur.x == goal.x && cur.y == goal.y) && stepsTaken < camelsteps)
+        // Cache'owanie celów, żeby nie czytać z właściwości (mikro-optymalizacja)
+        int gx = goal.x;
+        int gy = goal.y;
+
+        while (!(cur.x == gx && cur.y == gy) && stepsTaken < camelsteps)
         {
-            List<RobotAction> actions = new List<RobotAction>
-            {
-                RobotAction.Forward,
-                RobotAction.TurnLeft,
-                RobotAction.TurnRight,
-                RobotAction.Wait
-            };
+            // Wyczyszczenie reużywalnych list
+            for (int i = 0; i < 4; i++) _reusableNexts[i].Clear();
 
-            int A = actions.Count;
-
-            // nexts[i] = lista nodów generowanych przez akcję i
-            List<Node>[] nexts = new List<Node>[A];
-            for (int i = 0; i < A; i++)
-                nexts[i] = new List<Node>();
-
-            float[] weight = new float[A];
+            float[] weight = new float[4]; // To jest małe (stack), ujdzie, ale można też scache'ować
             float sum = 0f;
-            for (int i = 0; i < A; i++)
+
+            for (int i = 0; i < 4; i++)
             {
-                var action = actions[i];
-                bool allowed;
+                var action = _cachedActions[i];
 
+                // Apply musi być szybkie i nie alokować!
                 (Node nxt, bool ok) = Apply(cur, action);
-                allowed = ok;
 
-                if (!allowed)
-                {
-                    weight[i] = 0f;
-                    //Debug.LogWarning($"[FA] action={action} → NOT ALLOWED");
-                    continue;
-                }
+                if (!ok) continue;
 
-                nexts[i].Add(nxt);
+                _reusableNexts[i].Add(nxt);
 
-                // --- HEURYSTYKA ---
-                float h = Camel_HeuristicDesirability(cur, nxt, (goal.x, goal.y));
-
-                // suma bazowa
+                // Inlining heurystyki (lub upewnienie się, że jest szybka)
+                float h = Camel_HeuristicDesirability(cur, nxt, (gx, gy));
                 float w = h;
 
-                //Debug.Log(
-                //    $"[FA] action={action} " +
-                //    $"nxt=({nxt.x},{nxt.y}) " +
-                //    $"heur={h:F2} light={L:F2} sumBase={w:F2}"
-                //);
-
-                // --- FORWARD ---
-                if (action != RobotAction.Forward/* && action != RobotAction.Wait*/)
+                if (action != RobotAction.Forward)
                 {
                     (Node nxtfwd, bool okf) = Apply(nxt, RobotAction.Forward);
                     if (okf)
                     {
-                        nexts[i].Add(nxtfwd);
-
-                        float h2 = Camel_HeuristicDesirability(nxt, nxtfwd, (goal.x, goal.y));
-
-
-                        //Debug.Log(
-                        //    $"[FA]          forwardBonus nxt=({nxtfwd.x},{nxtfwd.y}) " +
-                        //    $"heur={h2:F2} light={L2:F2} bonus={bonus:F2}"
-                        //);
-
+                        _reusableNexts[i].Add(nxtfwd);
+                        float h2 = Camel_HeuristicDesirability(nxt, nxtfwd, (gx, gy));
                         w += h2;
                         w *= 0.20f;
                     }
-                    else if (action == RobotAction.Wait)
-                    {
-                        w= 0f;
-                    }
+                    else if (action == RobotAction.Wait) w = 0f;
                 }
 
                 weight[i] = w;
                 sum += w;
-
-                //Debug.Log(
-                //    $"[FA] FINAL action={action} weight={w:F2} (accumulated sum={sum:F2})"
-                //);
-            }
-            // --- TABELA WAG PO AKCJACH ---
-            //Debug.Log(
-            //    $"[FA] Weights → F={weight[0]:F2}, L={weight[1]:F2}, R={weight[2]:F2}, W={weight[3]:F2}, sum={sum:F2}"
-            //);
-
-            if (sum <= 0f)
-            {
-                // brak możliwości ruchu -> kończymy ścieżkę
-                Debug.Log("[Camel] No possible moves, ending path");
-                break;
             }
 
-            // ----------------------------------------
-            // WYBÓR AKCJI METODĄ RULETKI
-            // ----------------------------------------
+            if (sum <= 0f) break;
+
+            // Ruletka
             float r = UnityEngine.Random.value * sum;
             float acc = 0f;
             int chosen = 0;
 
-            for (int i = 0; i < A; i++)
+            for (int i = 0; i < 4; i++)
             {
                 acc += weight[i];
                 if (r <= acc)
@@ -254,17 +198,18 @@ public partial class PathManager : MonoBehaviour
                 }
             }
 
-            // ----------------------------------------
-            // DODAJEMY WSZYSTKIE NASTĘPNIKI ZWYBRANEJ AKCJI
-            // ----------------------------------------
-            foreach (var n in nexts[chosen])
+            // Dodawanie do ścieżki
+            var chosenList = _reusableNexts[chosen];
+            int count = chosenList.Count;
+            for (int k = 0; k < count; k++)
             {
+                var n = chosenList[k];
                 path.Add(n);
-                //Debug.Log($"[FA] Chosen action {n.action}");
                 stepsTaken++;
             }
-            // ustawiamy aktualnego noda na ostatni z listy
-            cur = path[path.Count-1];
+
+            if (path.Count > 0)
+                cur = path[path.Count - 1];
         }
 
         return path;
