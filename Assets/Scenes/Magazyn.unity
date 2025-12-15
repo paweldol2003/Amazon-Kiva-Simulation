@@ -1071,13 +1071,13 @@ MonoBehaviour:
   firesteps: 300
   firealpha: 1
   GA2populationSize: 100
-  GA2Iterations: 2000
+  GA2Iterations: 3000
   GA2crossoverRate: 0.8
   GA2mutationRate: 0.05
   GA2tournamentSize: 5
-  GA2maxSteps: 400
+  GA2maxSteps: 150
   GA2fitnessPenalty: 250
-  GA2elitismCount: 10
+  GA2elitismCount: 5
   nextIterationKey: 1
   switchToThirdAlgo: 30
   switchToACO: 29
