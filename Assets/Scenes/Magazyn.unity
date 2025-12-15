@@ -350,7 +350,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5e26e84d89536d444997b4fac5471cbc, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  width: 106
+  width: 46
   length: 46
   startShelfOccupation: 0.42
   tileColors:
