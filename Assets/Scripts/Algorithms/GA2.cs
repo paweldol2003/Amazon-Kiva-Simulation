@@ -4,6 +4,8 @@ using System.Collections.Generic;
 using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using System.IO;
+using System.Text;
 
 public partial class PathManager : MonoBehaviour
 {
@@ -17,6 +19,7 @@ public partial class PathManager : MonoBehaviour
     public int GA2maxSteps = 300; // Maksymalna długość ścieżki/chromosomu
     public int GA2fitnessPenalty = 100; // Kara za niechodliwe pola
     public int GA2elitismCount =5; // Liczba elitarnych chromosomów do zachowania
+    string csvPath;
 
     void GA2_Start(Tile start, Tile goal, Heading startHead, int startStep, RobotController robot)
     {
@@ -38,7 +41,7 @@ public partial class PathManager : MonoBehaviour
         RTgrid[startStep][goal.x, goal.y].flags = TileFlags.Goal;
 
         Tile[,] snapshot = gm.gridManager.CloneStep(RTgrid[startStep]);
-
+        InitCsv();
 
         // 1. Inicjalizacja
         (List<RobotAction> actions, List<Node> nodes, float fitness)[] population = new (List<RobotAction>, List<Node>, float)[populationSize];
@@ -65,6 +68,7 @@ public partial class PathManager : MonoBehaviour
             {
                 bestChromosome = population[0];
                 Debug.LogWarning($"[GA] New best fitness: {bestChromosome.finalFitness:F2}, count: {bestChromosome.finalNodes.Count} at iteration {it}");
+                AppendCsv(it, bestChromosome.finalFitness, bestChromosome.finalNodes.Count);
             }
             // --- KROK 2: NOWA POPULACJA ---
             var newPopulation = new (List<RobotAction>, List<Node>, float)[GA2populationSize];
@@ -231,6 +235,24 @@ public partial class PathManager : MonoBehaviour
     //    return fitness;
 
     //}
+
+    void InitCsv()
+    {
+        string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+        csvPath = Path.Combine(
+            Application.persistentDataPath,
+            $"ga_log_{timestamp}.csv"
+        );
+
+        Debug.LogWarning($"CSV path: {csvPath}");
+        File.WriteAllText(csvPath, "iteration,fitness,node_count\n");
+    }
+    void AppendCsv(int iteration, float fitness, int nodeCount)
+    {
+        string line = $"{iteration};{fitness:F4};{nodeCount}\n";
+        File.AppendAllText(csvPath, line);
+    }
+
     float GA2_Fitness(List<Node> path, Tile goal, Tile start)
 {
     if (path == null || path.Count == 0) return 0f;
