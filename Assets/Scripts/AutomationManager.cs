@@ -1,3 +1,4 @@
+using System.Collections; // Potrzebne do Coroutines
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -13,6 +14,7 @@ public class AutomationManager : MonoBehaviour
     public Key standardPath = Key.G;
     public Key standardCyclePath = Key.J;
     public Key nextStep = Key.RightArrow;
+    public Key toggleAutoKey = Key.H; // Nowy klawisz do w³¹czania automatu
 
     public int currentStep = 0;
     private List<Tile[,]> RTgrid; // Real time grid
@@ -20,9 +22,14 @@ public class AutomationManager : MonoBehaviour
     [Header("Ruch robota")]
     [SerializeField] private float moveTime = 0.15f;
 
-    [Header("Auto-repeat nextStep (jak w Windowsie)")]
-    [SerializeField] private float initialDelay = 0.35f; // pierwszy repeat po 350 ms
-    [SerializeField] private float repeatRate = 0.07f; // kolejne powtórzenia co 70 ms
+    [Header("Auto-repeat nextStep (Input manualny)")]
+    [SerializeField] private float initialDelay = 0.35f;
+    [SerializeField] private float repeatRate = 0.07f;
+
+    [Header("Pe³na Automatyzacja")]
+    [SerializeField] private float autoStepInterval = 1.0f; // Co ile sekund krok (1s)
+    [SerializeField] private int cycleTriggerInterval = 4;  // Co ile kroków nowa œcie¿ka (4)
+    private bool isAutoRunning = false;
 
     private float holdTimerNext = 0f;
     private bool isHoldingNext = false;
@@ -36,6 +43,22 @@ public class AutomationManager : MonoBehaviour
     {
         var kb = Keyboard.current;
         if (kb == null) return;
+
+        // --- H: W³¹cz/Wy³¹cz pe³n¹ automatyzacjê ---
+        if (kb[toggleAutoKey].wasPressedThisFrame)
+        {
+            isAutoRunning = !isAutoRunning;
+            if (isAutoRunning)
+            {
+                Debug.Log("[AutomationManager] Start automatyzacji.");
+                StartCoroutine(AutoLoop());
+            }
+            else
+            {
+                Debug.Log("[AutomationManager] Stop automatyzacji.");
+                StopAllCoroutines(); // Zatrzymuje pêtlê
+            }
+        }
 
         // --- G: œcie¿ka standardowa (jeden strza³) ---
         if (kb[standardPath].wasPressedThisFrame)
@@ -51,41 +74,61 @@ public class AutomationManager : MonoBehaviour
             gm.robotManager.MoveAllRobots(currentStep, moveTime);
         }
 
+        // Jeœli automat dzia³a, blokujemy manualne sterowanie strza³k¹ (opcjonalnie)
+        if (isAutoRunning) return;
 
-        /// --- Auto-repeat dla nextStep (RightArrow) ---
+        /// --- Auto-repeat dla nextStep (RightArrow) - Manualne ---
         var keyNext = kb[nextStep];
 
         bool justPressed = keyNext.wasPressedThisFrame;
         bool pressed = keyNext.isPressed;
         bool justReleased = keyNext.wasReleasedThisFrame;
 
-        // 1) Jednorazowe naciœniêcie – od razu jeden krok
         if (justPressed)
         {
             ExecuteStepOnce();
-
             isHoldingNext = true;
-            holdTimerNext = 0f; // start liczenia do pierwszego repeatu
+            holdTimerNext = 0f;
         }
-        // 2) Klawisz trzymany – auto-repeat po initialDelay, potem co repeatRate
         else if (pressed && isHoldingNext)
         {
             holdTimerNext += Time.deltaTime;
-
             if (holdTimerNext >= initialDelay)
             {
-                // po pierwszym opóŸnieniu powtarzamy co repeatRate
-                holdTimerNext -= repeatRate; // zostaw nadmiar, ¿eby tempo by³o równe
+                holdTimerNext -= repeatRate;
                 ExecuteStepOnce();
             }
         }
-        // 3) Puszczenie klawisza – reset
         else if (justReleased || !pressed)
         {
             isHoldingNext = false;
             holdTimerNext = 0f;
         }
         ///
+    }
+
+    // --- Pêtla automatyzacji ---
+    IEnumerator AutoLoop()
+    {
+        while (isAutoRunning)
+        {
+            // 1. Czekaj 1 sekundê
+            yield return new WaitForSeconds(autoStepInterval);
+
+            // Zabezpieczenie, gdyby wy³¹czono w trakcie czekania
+            if (!isAutoRunning) break;
+
+            // 2. Co 4 kroki wywo³aj Set Standard Cycle
+            // U¿ywamy modulo (reszta z dzielenia)
+            if (currentStep % cycleTriggerInterval == 0)
+            {
+                //Debug.Log($"[AutoMan] Cykl {cycleTriggerInterval} kroków - przydzielanie œcie¿ek.");
+                gm.robotManager.AssignStandardCyclePath(currentStep);
+            }
+
+            // 3. Wykonaj krok (to równie¿ ruszy robotami po nowej œcie¿ce, jeœli zosta³a przydzielona)
+            ExecuteStepOnce();
+        }
     }
 
     private void ExecuteStepOnce()
@@ -96,22 +139,14 @@ public class AutomationManager : MonoBehaviour
         // --- UpdateRTgrid ---
         var t0 = Time.realtimeSinceStartup;
         gm.gridManager.UpdateRTgrid(currentStep);
-        //Debug.LogWarning($"[Timer] UpdateRTgrid: {(Time.realtimeSinceStartup - t0) * 1000f} ms");
 
         // --- MoveAllRobots ---
-        var t1 = Time.realtimeSinceStartup;
+        // To wykona ruch bazuj¹c na œcie¿ce przydzielonej chwilê wczeœniej w AutoLoop (jeœli wypad³ 4 krok)
         gm.robotManager.MoveAllRobots(currentStep, moveTime);
-        //Debug.LogWarning($"[Timer] MoveAllRobots: {(Time.realtimeSinceStartup - t1) * 1000f} ms");
-
-        // --- CheckSpawnpointsOccupation ---
-        var t2 = Time.realtimeSinceStartup;
-        //gm.gridManager.CheckSpawnpointsOccupation(currentStep);
-        //Debug.LogWarning($"[Timer] CheckSpawnpointsOccupation: {(Time.realtimeSinceStartup - t2) * 1000f} ms");
 
         // --- RefreshAll ---
-        var t3 = Time.realtimeSinceStartup;
         gm.gridManager.RefreshAll(currentStep);
-        //Debug.LogWarning($"[Timer] RefreshAll: {(Time.realtimeSinceStartup - t3) * 1000f} ms");
+
         Debug.LogWarning($"[AutoMan] Total step time: {(Time.realtimeSinceStartup - t0) * 1000f} ms");
     }
 }
