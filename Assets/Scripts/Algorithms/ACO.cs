@@ -16,18 +16,30 @@ public partial class PathManager : MonoBehaviour
     public int ACOMaxSteps = 300;
     void ACO_Start(Tile start, Tile goal, Heading startHead, int startStep, RobotController robot)
     {
-        //System.Action<List<Node>> onDone;
+        float t0 = Time.realtimeSinceStartup;
+
+        // Obliczamy dystans Manhattan przed uruchomieniem Coroutine
+        int manhattan = Mathf.Abs(start.x - goal.x) + Mathf.Abs(start.y - goal.y);
+
         StartCoroutine(ACO_Coroutine(start, goal, startHead, startStep, robot, path =>
         {
+            float elapsed = (Time.realtimeSinceStartup - t0) * 1000f;
+
             if (path == null || path.Count == 0)
             {
-                Debug.LogError($"No path found for robot {robot.Id} to point.");
+                AlgorithmLogger.LogToCSV("ACO", elapsed, 0, 0, false, startStep, manhattan);
                 return;
             }
-            Debug.LogWarning($"Assigning point path to robot {robot.Id}, path size: {path.Count}");
-            gm.robotManager.AssignPlanToRobot(robot, path);
-            robot.destinations.Dequeue();
 
+            int rotations = 0;
+            foreach (var n in path)
+                if (n.action == RobotAction.TurnLeft || n.action == RobotAction.TurnRight) rotations++;
+
+            // Przekazujemy obliczony manhattan do loggera
+            AlgorithmLogger.LogToCSV("ACO", elapsed, path.Count, rotations, true, startStep, manhattan);
+
+            //gm.robotManager.AssignPlanToRobot(robot, path);
+            //robot.destinations.Dequeue();
         }));
     }
     IEnumerator ACO_Coroutine(Tile start, Tile goal, Heading startHead, int startStep, RobotController robot, System.Action<List<Node>> onDone)
@@ -47,8 +59,9 @@ public partial class PathManager : MonoBehaviour
         List<Node> bestPath = null;
         //CA£A ITERACJA
         int it = 0;
-        for (; it < acoiterations; it++)
+        while (Time.realtimeSinceStartup - t0 < 1f) // max 5 sekund
         {
+            it++;
             float tIter = Time.realtimeSinceStartup;
 
             // 1) Parowanie
@@ -80,12 +93,25 @@ public partial class PathManager : MonoBehaviour
                     }
                 }
             }
-            Debug.Log($"[ACO] Iter {it} took {(Time.realtimeSinceStartup - tIter) * 1000f} ms");
+            //Debug.Log($"[ACO] Iter {it} took {(Time.realtimeSinceStartup - tIter) * 1000f} ms");
 
         }
-        foreach (var n in bestPath)
-            RTgrid[startStep][n.x, n.y].flags |= TileFlags.BestAlgPath;
+
+        if (bestPath != null)
+        {
+            foreach (var n in bestPath)
+            {
+                // U¿yj odpowiedniej flagi (BestAlgPath lub BestACOPath jeœli ju¿ zmieni³eœ enum)
+                RTgrid[startStep][n.x, n.y].flags |= TileFlags.BestACOPath;
+            }
+        }
+        else
+        {
+            Debug.LogError($"[ACO] Robot {robot.Id}: Nie znaleziono œcie¿ki po {it} iteracjach.");
+        }
+
         gm.gridManager.RefreshAll(startStep);
+
         float elapsed = (Time.realtimeSinceStartup - t0) * 1000f;
         Debug.LogWarning($"[ACO Timer] ACO_Interactive for robot {robot.Id} took {elapsed:F2} ms and {it} iterations");
 
@@ -117,7 +143,7 @@ public partial class PathManager : MonoBehaviour
                 if (checktimers)
                 {
                     float antTime = (Time.realtimeSinceStartup - antStart) * 1000f;
-                    Debug.Log($"[CAP] Ant return path, total time: {antTime:F3} ms, step: {s}");
+                    //Debug.Log($"[CAP] Ant return path, total time: {antTime:F3} ms, step: {s}");
                 }
                 return path;
             }

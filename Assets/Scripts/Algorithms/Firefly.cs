@@ -19,16 +19,29 @@ public partial class PathManager : MonoBehaviour
     void Firefly_Start(Tile start, Tile goal, Heading startHead, int startStep, RobotController robot)
     {
         Debug.Log($"[Firefly] Starting firefly optimization for robot {robot.Id}");
+        float t0 = Time.realtimeSinceStartup;
+        int manhattan = Mathf.Abs(start.x - goal.x) + Mathf.Abs(start.y - goal.y);
 
         StartCoroutine(Firefly_Coroutine(start, goal, startHead, startStep, robot, path =>
         {
+            float elapsed = (Time.realtimeSinceStartup - t0) * 1000f;
+
             if (path == null || path.Count == 0)
             {
                 Debug.LogError($"[Firefly] Failed to find ANY path for robot {robot.Id}");
+                // Logowanie porażki do CSV
+                AlgorithmLogger.LogToCSV("Firefly", elapsed, 0, 0, false, startStep, manhattan);
                 return;
             }
 
-            Debug.Log($"[Firefly] Path found for robot {robot.Id}, length={path.Count}");
+            int rotations = 0;
+            foreach (var n in path)
+                if (n.action == RobotAction.TurnLeft || n.action == RobotAction.TurnRight) rotations++;
+
+            // Logowanie sukcesu do CSV
+            AlgorithmLogger.LogToCSV("Firefly", elapsed, path.Count, rotations, true, startStep, manhattan);
+
+            //Debug.Log($"[Firefly] Path found for robot {robot.Id}, length={path.Count}");
             gm.robotManager.AssignPlanToRobot(robot, path);
             robot.destinations.Dequeue();
         }));
@@ -56,9 +69,11 @@ public partial class PathManager : MonoBehaviour
         for (int i = 0; i < _cachedActions.Length; i++) sharedNexts[i] = new List<Node>(2); // capacity 2 (bo max forward bonus)
 
         float[] sharedWeights = new float[_cachedActions.Length];
-
-        for (int g = 0; g < generations; g++)
+        int g = 0;
+        //for (int g = 0; g < generations; g++)
+        while (Time.realtimeSinceStartup - t0 < 1f) // max 5 sekund
         {
+            g++;
             //Debug.Log($"[Firefly] === GENERATION {g} ===");
             RTgrid[startStep] = gm.gridManager.CloneStep(snapshot);
 
@@ -79,8 +94,8 @@ public partial class PathManager : MonoBehaviour
                 //Debug.Log($"[Firefly] Firefly {i}, pathLen = {fireflyPath.Count}, fitness = {fit:F3}");
 
                 // kolorowanie debug (nie zmieniamy logiki)
-                foreach (var n in fireflyPath)
-                    RTgrid[startStep][n.x, n.y].flags |= TileFlags.AlgPath;
+                //foreach (var n in fireflyPath)
+                //    RTgrid[startStep][n.x, n.y].flags |= TileFlags.AlgPath;
 
                 // aktualizacja bestPath
                 if (bestGlobalPath == null || fit > Fitness(bestGlobalPath, goal, start))
@@ -104,9 +119,7 @@ public partial class PathManager : MonoBehaviour
 
             //Debug.Log($"[Firefly] Generation {g} updated light grid.");
 
-            foreach (var n in bestGlobalPath)
-                RTgrid[startStep][n.x, n.y].flags |= TileFlags.BestAlgPath;
-            gm.gridManager.RefreshAll(startStep);
+            
 
             ////---Czekaj na naciśnięcie klawisza przed przejściem do kolejnej generacji ---
             //Debug.Log($"[Firefly] Press {nextIterationKey} to continue to next generation {g + 1}/{generations}...");
@@ -127,8 +140,12 @@ public partial class PathManager : MonoBehaviour
             finalBestPath = bestGlobalPath;
         }
 
+        foreach (var n in finalBestPath)
+            RTgrid[startStep][n.x, n.y].flags |= TileFlags.BestFAPath;
+        gm.gridManager.RefreshAll(startStep);
+
         float elapsed = (Time.realtimeSinceStartup - t0) * 1000f;
-        Debug.LogWarning($"[Firefly Timer] Firefly Coroutine for robot {robot.Id} took {elapsed:F2} ms");
+        Debug.LogWarning($"[Firefly Timer] Firefly Coroutine for robot {robot.Id} took {elapsed:F2} ms and {g} iterations");
         onDone?.Invoke(finalBestPath);
         yield break;
     }
@@ -240,10 +257,13 @@ public partial class PathManager : MonoBehaviour
             // ----------------------------------------
             float r = UnityEngine.Random.value * sum;
             float acc = 0f;
-            int chosen = 0;
+            int chosen = -1; // Zmieniono z 0 na -1 dla bezpieczeństwa
 
             for (int i = 0; i < A; i++)
             {
+                // Pomijamy zerowe wagi, żeby nie wybrać pustej listy
+                if (weightsBuffer[i] <= 0f) continue;
+
                 acc += weightsBuffer[i];
                 if (r <= acc)
                 {
@@ -251,6 +271,22 @@ public partial class PathManager : MonoBehaviour
                     break;
                 }
             }
+
+            // ZABEZPIECZENIE: Jeśli błąd float sprawił, że r > acc, wybieramy ostatnią możliwą akcję
+            if (chosen == -1)
+            {
+                for (int i = A - 1; i >= 0; i--)
+                {
+                    if (weightsBuffer[i] > 0f)
+                    {
+                        chosen = i;
+                        break;
+                    }
+                }
+            }
+
+            // Jeśli nadal -1 (teoretycznie niemożliwe przy sum > 0), przerywamy
+            if (chosen == -1) break;
 
             var chosenNodes = nextsBuffer[chosen];
             for (int k = 0; k < chosenNodes.Count; k++)

@@ -2,19 +2,20 @@ using System;
 using UnityEngine;
 
 [Flags]
-public enum TileFlags : byte
+public enum TileFlags : ushort // Zmiana z byte na ushort
 {
     None = 0,
     Blocked = 1 << 0,
-    //Reserved = 1 << 1,
     Spawn = 1 << 2,
     Goal = 1 << 3,
     Shelf = 1 << 4,
     Occupied = 1 << 5,
     TransferPoint = 1 << 6,
     AlgPath = 1 << 7,
-    BestAlgPath = 1 << 1,
-
+    // Przypisanie unikalnych bitów dla ka¿dego algorytmu
+    BestACOPath = 1 << 1,
+    BestCHAPath = 1 << 8,
+    BestFAPath = 1 << 9,
 }
 
 [Serializable]
@@ -54,7 +55,9 @@ public class Tile
     {
 
         var C = Palette ?? new TileColors(); // awaryjnie gdyby null
-        if ((_flags & TileFlags.BestAlgPath) != 0) { color = C.bestAlgPath; return; }
+        if ((_flags & TileFlags.BestCHAPath) != 0) { color = C.bestCHAPath; return; }
+        if ((_flags & TileFlags.BestACOPath) != 0) { color = C.bestACOPath; return; }
+        if ((_flags & TileFlags.BestFAPath) != 0) { color = C.bestFAPath; return; }
         if ((_flags & TileFlags.AlgPath) != 0) { color = C.algPath; return; }
         if ((_flags & TileFlags.Goal) != 0) { color = C.goal; return; }
 
@@ -88,5 +91,7 @@ public class TileColors
     public Color32 goal = new Color32(155, 210, 200, 255);
     public Color32 transferpoint = new Color32(127, 0, 255, 100);
     public Color32 algPath = new Color32(255, 0, 0, 255);
-    public Color32 bestAlgPath = new Color32(255, 215, 0, 255);
+    public Color32 bestCHAPath = new Color32(255, 215, 0, 55);
+    public Color32 bestACOPath = new Color32(255, 10, 10, 55);
+    public Color32 bestFAPath = new Color32(0, 255, 255, 55);
 }

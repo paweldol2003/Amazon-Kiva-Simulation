@@ -16,18 +16,31 @@ public partial class PathManager : MonoBehaviour
 
     void Camel_Start(Tile start, Tile goal, Heading startHead, int startStep, RobotController robot)
     {
-        //System.Action<List<Node>> onDone;
+        float t0 = Time.realtimeSinceStartup;
+        int manhattan = Mathf.Abs(start.x - goal.x) + Mathf.Abs(start.y - goal.y);
+
         StartCoroutine(Camel_Coroutine(start, goal, startHead, startStep, robot, path =>
         {
+            float elapsed = (Time.realtimeSinceStartup - t0) * 1000f;
+
             if (path == null || path.Count == 0)
             {
                 Debug.LogError($"No path found for robot {robot.Id} to point.");
+                // Logowanie porażki do CSV
+                AlgorithmLogger.LogToCSV("Camel", elapsed, 0, 0, false, startStep, manhattan);
                 return;
             }
-            Debug.LogWarning($"Assigning point path to robot {robot.Id}, path size: {path.Count}");
-            gm.robotManager.AssignPlanToRobot(robot, path);
-            robot.destinations.Dequeue();
 
+            int rotations = 0;
+            foreach (var n in path)
+                if (n.action == RobotAction.TurnLeft || n.action == RobotAction.TurnRight) rotations++;
+
+            // Logowanie sukcesu do CSV
+            AlgorithmLogger.LogToCSV("Camel", elapsed, path.Count, rotations, true, startStep, manhattan);
+
+            //Debug.LogWarning($"Assigning point path to robot {robot.Id}, path size: {path.Count}");
+            //gm.robotManager.AssignPlanToRobot(robot, path);
+            //robot.destinations.Dequeue();
         }));
     }
     IEnumerator Camel_Coroutine(Tile start, Tile goal, Heading startHead, int startStep, RobotController robot, System.Action<List<Node>> onDone)
@@ -42,8 +55,11 @@ public partial class PathManager : MonoBehaviour
         float bestPathHumidity = float.NegativeInfinity;
 
         Debug.LogWarning($"[Camel] Starting pathfinding from ({start.x},{start.y}) to ({goal.x},{goal.y})");
-        for (int h = 0; h < herds; h++)
+        //for (int h = 0; h < herds; h++)
+        int h = 0;
+        while (Time.realtimeSinceStartup - t0 < 1f) // max 
         {
+            h++;
             List<Node> herdPath = new List<Node>();
             herdPath.Add(new Node(start.x, start.y, startHead, RobotAction.Wait, startStep));
             RTgrid[startStep] = gm.gridManager.CloneStep(snapshot);
@@ -99,9 +115,9 @@ public partial class PathManager : MonoBehaviour
                 }
                 herdPath.AddRange(bestSegment);
                 //Debug.LogWarning($"[Camel] Herd {h}, added node ({bestNextNode.x},{bestNextNode.y},{bestNextNode.action}) with humidity {bestHumidity:F2}");
-                foreach (var n in herdPath)
-                    RTgrid[startStep][n.x, n.y].flags |= TileFlags.BestAlgPath;
-                gm.gridManager.RefreshAll(startStep);
+                //foreach (var n in herdPath)
+                //    RTgrid[startStep][n.x, n.y].flags |= TileFlags.BestAlgPath;
+                //gm.gridManager.RefreshAll(startStep);
                 //while (Keyboard.current[nextIterationKey].isPressed)
                 //    yield return null;
 
@@ -117,8 +133,10 @@ public partial class PathManager : MonoBehaviour
             }
         }
         float elapsed = (Time.realtimeSinceStartup - t0) * 1000f;
-        Debug.LogWarning($"[Camel Timer] Camel Coroutine for robot {robot.Id} took {elapsed:F2} ms");
-
+        Debug.LogWarning($"[Camel Timer] Camel Coroutine for robot {robot.Id} took {elapsed:F2} ms and {h} iterations");
+        foreach (var n in bestPath)
+            RTgrid[startStep][n.x, n.y].flags |= TileFlags.BestCHAPath;
+        gm.gridManager.RefreshAll(startStep);
 
         onDone?.Invoke(bestPath);
 

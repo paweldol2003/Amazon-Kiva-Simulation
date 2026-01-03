@@ -12,7 +12,7 @@ public partial class PathManager : MonoBehaviour
     public enum RobotAction { Forward = 0, TurnLeft = 1, TurnRight = 2, Wait = 3 }
 
     private enum AlgorithmMode { ACO = 0, Firefly = 2, Camel = 4, All = 5 }
-    private AlgorithmMode algorithmMode = AlgorithmMode.Firefly;
+    private AlgorithmMode algorithmMode = AlgorithmMode.All;
 
     [Header("Controls")]
     public Key nextIterationKey = Key.Space;
@@ -73,8 +73,10 @@ public partial class PathManager : MonoBehaviour
                 break;
             case AlgorithmMode.All:
                 Debug.Log($"[All] Starting shelf path for robot {robot.Id} at step {startStep}");
+                Camel_Start(startTile, endTile, startHead, startStep, robot);
                 ACO_Start(startTile, endTile, startHead, startStep, robot);
                 Firefly_Start(startTile, endTile, startHead, startStep, robot);
+
                 break;
         }
     }
@@ -116,8 +118,10 @@ public partial class PathManager : MonoBehaviour
                 break;
             case AlgorithmMode.All:
                 Debug.Log($"[All] Starting spawnpoint path for robot {robot.Id} at step {startStep}");
+                Camel_Start(startTile, endTile, startHead, startStep, robot);
                 ACO_Start(startTile, endTile, startHead, startStep, robot);
                 Firefly_Start(startTile, endTile, startHead, startStep, robot);
+
                 break;
         }
     }
@@ -163,8 +167,10 @@ public partial class PathManager : MonoBehaviour
                 break;
             case AlgorithmMode.All:
                 Debug.Log($"[All] Starting transfer point path for robot {robot.Id} at step {startStep}");
+                Camel_Start(startTile, endTile, startHead, startStep, robot);
                 ACO_Start(startTile, endTile, startHead, startStep, robot);
                 Firefly_Start(startTile, endTile, startHead, startStep, robot);
+
                 break;
         }
     }

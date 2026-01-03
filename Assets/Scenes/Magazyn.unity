@@ -381,9 +381,15 @@ MonoBehaviour:
     algPath:
       serializedVersion: 2
       rgba: 4278190335
-    bestAlgPath:
+    bestCHAPath:
       serializedVersion: 2
       rgba: 4278245375
+    bestACOPath:
+      serializedVersion: 2
+      rgba: 4278232575
+    bestFAPath:
+      serializedVersion: 2
+      rgba: 4294967040
   cellSize: 1
   origin: {x: 0, y: 0}
   tileMaterial: {fileID: 2100000, guid: 93e094922856f55499e522c32dcb121e, type: 2}
@@ -1056,33 +1062,19 @@ MonoBehaviour:
   evaporation: 0.75
   Q: 100
   tau0: 0.1
-  maxStepsFactor: 0.25
-  populationSize: 100
-  gaIterations: 100
-  crossoverRate: 0.8
-  mutationRate: 0.05
-  tournamentSize: 5
-  maxSteps: 100
-  herds: 3
+  ACOMaxSteps: 300
+  herds: 10
   camels: 30
   camelsteps: 48
+  camelStepsToAssign: 3
   fireflies: 10
-  generations: 70
+  generations: 100
   firesteps: 300
   firealpha: 1
-  GA2populationSize: 100
-  GA2Iterations: 100
-  GA2crossoverRate: 0.8
-  GA2mutationRate: 0.05
-  GA2tournamentSize: 5
-  GA2maxSteps: 300
-  GA2fitnessPenalty: 100
-  GA2elitismCount: 5
   nextIterationKey: 1
   switchToThirdAlgo: 30
   switchToACO: 29
-  switchToGA: 26
-  switchToPSO: 23
+  switchToCamel: 23
   switchToAll: 35
 --- !u!1 &1506708467
 GameObject:
