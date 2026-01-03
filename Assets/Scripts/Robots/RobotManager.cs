@@ -170,6 +170,8 @@ public class RobotManager : MonoBehaviour
     public void AssignStandardCyclePath(int currentStep)
     {
         RobotController robot = gm.robotManager.GetFreeRobot();
+        if (robot == null) return;
+
         robot.AssignDestination(RobotDestination.ToShelf);
         robot.AssignDestination(RobotDestination.ToTP);
         robot.AssignDestination(RobotDestination.ToShelf);
@@ -177,13 +179,18 @@ public class RobotManager : MonoBehaviour
     }
     public void AssignShelfPath(int currentStep)
     {
+
         RobotController robot = gm.robotManager.GetFreeRobot();
+        if (robot == null) return;
+
         robot.AssignDestination(RobotDestination.ToShelf);
         robot.AssignDestination(RobotDestination.ToSpawn);
     }
     public void AssignTransferPointPath(int currentStep)
     {
         RobotController robot = gm.robotManager.GetFreeRobot();
+        if (robot == null) return;
+
         robot.AssignDestination(RobotDestination.ToTP);
         robot.AssignDestination(RobotDestination.ToSpawn);
     }
