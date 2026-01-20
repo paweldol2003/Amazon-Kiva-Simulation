@@ -46,6 +46,10 @@ public partial class PathManager : MonoBehaviour
     IEnumerator Camel_Coroutine(Tile start, Tile goal, Heading startHead, int startStep, RobotController robot, System.Action<List<Node>> onDone)
     {
         float t0 = Time.realtimeSinceStartup;   // <-- START pomiaru
+        int manhattan = Mathf.Abs(start.x - goal.x) + Mathf.Abs(start.y - goal.y);
+
+        float lastLogTimeMs = 0f;
+        float lastLoggedBestFitness = float.NegativeInfinity;
 
         Tile[,] snapshot = gm.gridManager.CloneStep(RTgrid[startStep]);
         RTgrid[startStep][goal.x, goal.y].flags = TileFlags.Goal;
@@ -126,11 +130,33 @@ public partial class PathManager : MonoBehaviour
                 //    yield return null;
             }
             float herdPathHumidity = Camel_Humidity(herdPath, start, goal);
+            bool improved = false;
+
             if (bestPathHumidity < herdPathHumidity)
             {
                 bestPathHumidity = herdPathHumidity;
                 bestPath = herdPath;
+                improved = true;
             }
+
+            // --- LOG ZBIEŻNOŚCI ---
+            if (bestPath != null)
+            {
+                int bestLen = bestPath.Count;
+                float fitness = bestPathHumidity; // u Ciebie większe = lepsze
+
+                float elapsedMs = (Time.realtimeSinceStartup - t0) * 1000f;
+                bool timePassed = (elapsedMs - lastLogTimeMs) >= 5f;
+                bool betterThanLastLogged = fitness > lastLoggedBestFitness;
+
+                if (improved || timePassed)
+                {
+                    ConvergenceLogger.Log("Camel", h, elapsedMs, manhattan, fitness, bestLen);
+                    lastLogTimeMs = elapsedMs;
+                    lastLoggedBestFitness = fitness;
+                }
+            }
+
         }
         float elapsed = (Time.realtimeSinceStartup - t0) * 1000f;
         Debug.LogWarning($"[Camel Timer] Camel Coroutine for robot {robot.Id} took {elapsed:F2} ms and {h} iterations");

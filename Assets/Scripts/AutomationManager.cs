@@ -147,6 +147,6 @@ public class AutomationManager : MonoBehaviour
         // --- RefreshAll ---
         gm.gridManager.RefreshAll(currentStep);
 
-        Debug.LogWarning($"[AutoMan] Total step time: {(Time.realtimeSinceStartup - t0) * 1000f} ms");
+        Debug.Log($"[AutoMan] Total step time: {(Time.realtimeSinceStartup - t0) * 1000f} ms");
     }
 }

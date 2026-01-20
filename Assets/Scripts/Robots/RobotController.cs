@@ -114,7 +114,7 @@ public class RobotController : MonoBehaviour
     public void AssignDestination(RobotDestination dest)
     {
         destinations.Enqueue(dest);
-        Debug.Log($"[RobotController:{name}] Assigned destination: {dest}");
+        //Debug.Log($"[RobotController:{name}] Assigned destination: {dest}");
     }
 
     /// <summary>

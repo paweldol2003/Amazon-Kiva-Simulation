@@ -1,0 +1,14 @@
+\begin{table}
+\caption{Porównanie algorytmów ACO, FA oraz CHA na podstawie logów konwergencji.}
+\label{tab:alg_comparison_convergence}
+\begin{tabular}{lrrrrrrrrrrrrrrrrr}
+\toprule
+ & Runs & ConvergenceTimeMs_mean & ConvergenceTimeMs_std & ConvergenceTimeMs_min & ConvergenceTimeMs_max & FinalBestPathLength_mean & FinalBestPathLength_std & FinalBestPathLength_min & FinalBestPathLength_max & FinalFitness_mean & FinalFitness_std & FinalFitness_min & FinalFitness_max & NumIterations_mean & NumIterations_std & NumIterations_min & NumIterations_max \\
+Algorithm &  &  &  &  &  &  &  &  &  &  &  &  &  &  &  &  &  \\
+\midrule
+ACO & 116 & 1007.389 & 7.371 & 996.690 & 1033.680 & 60.595 & 27.406 & 12 & 142 & 26.038 & 1.253 & 18.750 & 28.235 & 87.319 & 90.619 & 23 & 607 \\
+CHA & 172 & 1010.146 & 10.141 & 995.410 & 1061.580 & 66.622 & 32.395 & 8 & 166 & 25.934 & 1.760 & 16.500 & 29.135 & 92.337 & 116.850 & 20 & 879 \\
+FA & 172 & 999.309 & 3.131 & 993.260 & 1027.770 & 64.826 & 30.768 & 8 & 155 & 53.007 & 4.355 & 31.429 & 58.835 & 510.267 & 195.654 & 211 & 1151 \\
+\bottomrule
+\end{tabular}
+\end{table}

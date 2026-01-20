@@ -38,13 +38,19 @@ public partial class PathManager : MonoBehaviour
             // Przekazujemy obliczony manhattan do loggera
             AlgorithmLogger.LogToCSV("ACO", elapsed, path.Count, rotations, true, startStep, manhattan);
 
-            //gm.robotManager.AssignPlanToRobot(robot, path);
-            //robot.destinations.Dequeue();
+            gm.robotManager.AssignPlanToRobot(robot, path);
+            robot.destinations.Dequeue();
         }));
     }
     IEnumerator ACO_Coroutine(Tile start, Tile goal, Heading startHead, int startStep, RobotController robot, System.Action<List<Node>> onDone)
     {
         float t0 = Time.realtimeSinceStartup;   // <-- START pomiaru
+        int manhattan = Mathf.Abs(start.x - goal.x) + Mathf.Abs(start.y - goal.y);
+
+        // do logowania zbie¿noœci
+        float lastLogTimeMs = 0f;
+        int lastLoggedBestLen = int.MaxValue;
+
 
         int w = RTgrid[startStep].GetLength(0), h = RTgrid[startStep].GetLength(1);
         int S = w * h * 4; // stany (x,y,heading)
@@ -55,14 +61,19 @@ public partial class PathManager : MonoBehaviour
         for (int s = 0; s < S; s++)
             for (int a = 0; a < A; a++)
                 tau[s, a] = tau0;
-
+        Tile[,] snapshot = gm.gridManager.CloneStep(RTgrid[startStep]);
+        RTgrid[startStep][goal.x, goal.y].flags = TileFlags.Goal;
         List<Node> bestPath = null;
         //CA£A ITERACJA
         int it = 0;
         while (Time.realtimeSinceStartup - t0 < 1f) // max 5 sekund
+        //for (int iteration = 0; iteration < acoiterations; iteration++)
         {
             it++;
             float tIter = Time.realtimeSinceStartup;
+            bool improvedThisIter = false;
+
+            RTgrid[startStep] = gm.gridManager.CloneStep(snapshot);
 
             // 1) Parowanie
             for (int s = 0; s < S; s++)
@@ -75,7 +86,22 @@ public partial class PathManager : MonoBehaviour
                 float tAnt = Time.realtimeSinceStartup;
                 bool checktimers = (k % 5) == 0; // co pi¹ta mrówka sprawdza czas
                 var nodes = ConstructAntPath(new Node(start.x, start.y, startHead, RobotAction.Wait, startStep), (goal.x, goal.y), tau, startStep, checktimers);
-                if (nodes != null && (bestPath == null || nodes.Count < bestPath.Count)) bestPath = nodes;
+                if (nodes != null && (bestPath == null || nodes.Count < bestPath.Count))
+                {
+                    bestPath = nodes;
+                    improvedThisIter = true;
+                }
+                //if(nodes != null)
+                                 //{
+                                 //    foreach (var n in nodes)
+                                 //    {
+                                 //        // U¿yj odpowiedniej flagi (BestAlgPath lub BestACOPath jeœli ju¿ zmieni³eœ enum)
+                                 //        RTgrid[startStep][n.x, n.y].flags |= TileFlags.AlgPath;
+                                 //    }
+                                 //    gm.gridManager.RefreshAll(startStep);
+                                 //    yield return null; // Zobaczymy ka¿d¹ mrówkê z osobna
+                                 //}
+
             }
             // 3) Globalna depozycja na best-so-far
             if (bestPath != null && bestPath.Count > 1)
@@ -91,6 +117,25 @@ public partial class PathManager : MonoBehaviour
                         int si = ACO_StateIndex(from.x, from.y, from.head, w, h);
                         tau[si, (int)act] += deposit;
                     }
+                }
+            }
+            if (bestPath != null)
+            {
+                int bestLen = bestPath.Count;
+
+                float elapsedMs = (Time.realtimeSinceStartup - t0) * 1000f;
+
+                // tutaj fitness = -d³ugoœæ œcie¿ki (wiêksze = lepsze)
+                float fitness = -bestLen;
+
+                bool timePassed = (elapsedMs - lastLogTimeMs) >= 50f;
+                bool betterThanLastLogged = bestLen < lastLoggedBestLen;
+
+                if (improvedThisIter || timePassed)
+                {
+                    ConvergenceLogger.Log("ACO", it, elapsedMs, manhattan, fitness, bestLen);
+                    lastLogTimeMs = elapsedMs;
+                    lastLoggedBestLen = bestLen;
                 }
             }
             //Debug.Log($"[ACO] Iter {it} took {(Time.realtimeSinceStartup - tIter) * 1000f} ms");

@@ -12,7 +12,7 @@ public partial class PathManager : MonoBehaviour
     public enum RobotAction { Forward = 0, TurnLeft = 1, TurnRight = 2, Wait = 3 }
 
     private enum AlgorithmMode { ACO = 0, Firefly = 2, Camel = 4, All = 5 }
-    private AlgorithmMode algorithmMode = AlgorithmMode.All;
+    private AlgorithmMode algorithmMode = AlgorithmMode.ACO;
 
     [Header("Controls")]
     public Key nextIterationKey = Key.Space;
@@ -215,6 +215,9 @@ public partial class PathManager : MonoBehaviour
                 }
             case RobotAction.Wait:
                 {
+                    //walkable = RTgrid[s.step + 1][s.x, s.y].Walkable;
+                    //if (!walkable)
+                    //    return (s, false);
                     return (new Node(s.x, s.y, s.head, RobotAction.Wait, s.step + 1), true);
                 }
 

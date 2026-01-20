@@ -50,6 +50,10 @@ public partial class PathManager : MonoBehaviour
                                RobotController robot, Action<List<Node>> onDone)
     {
         float t0 = Time.realtimeSinceStartup;   // <-- START pomiaru
+        int manhattan = Mathf.Abs(start.x - goal.x) + Mathf.Abs(start.y - goal.y);
+
+        float lastLogTimeMs = 0f;
+        float lastLoggedBestFitness = float.NegativeInfinity;
 
 
         List<Node> bestGlobalPath = null;
@@ -70,7 +74,7 @@ public partial class PathManager : MonoBehaviour
 
         float[] sharedWeights = new float[_cachedActions.Length];
         int g = 0;
-        //for (int g = 0; g < generations; g++)
+        //for (; g < generations; g++)
         while (Time.realtimeSinceStartup - t0 < 1f) // max 5 sekund
         {
             g++;
@@ -80,6 +84,7 @@ public partial class PathManager : MonoBehaviour
             // 1️⃣ LISTA pathów tej generacji
             List<(List<Node> path, float fitness)> generationPaths = new();
             //bestGenerationPath = null;
+            bool improvedThisGen = false;
 
             // 2️⃣ WYZNACZAMY NOWE ŚCIEŻKI KORZYSTAJĄC ZE STAREGO ŚWIATŁA
             for (int i = 0; i < fireflies; i++)
@@ -93,15 +98,24 @@ public partial class PathManager : MonoBehaviour
 
                 //Debug.Log($"[Firefly] Firefly {i}, pathLen = {fireflyPath.Count}, fitness = {fit:F3}");
 
-                // kolorowanie debug (nie zmieniamy logiki)
-                //foreach (var n in fireflyPath)
-                //    RTgrid[startStep][n.x, n.y].flags |= TileFlags.AlgPath;
+                //if (fireflyPath != null)
+                //{
+                //    foreach (var n in fireflyPath)
+                //    {
+                //        // Użyj odpowiedniej flagi (BestAlgPath lub BestACOPath jeśli już zmieniłeś enum)
+                //        RTgrid[startStep][n.x, n.y].flags |= TileFlags.AlgPath;
+                //    }
+                //    gm.gridManager.RefreshAll(startStep);
+                //    yield return null; // Zobaczymy każdą mrówkę z osobna
+                //}
 
                 // aktualizacja bestPath
                 if (bestGlobalPath == null || fit > Fitness(bestGlobalPath, goal, start))
                 {
                     bestGlobalPath = fireflyPath;
                     bestGlobalFitness = 2 * fit;
+                    improvedThisGen = true;
+
                 }
 
                 generationPaths.Add((fireflyPath, fit));
@@ -119,7 +133,22 @@ public partial class PathManager : MonoBehaviour
 
             //Debug.Log($"[Firefly] Generation {g} updated light grid.");
 
-            
+            if (bestGlobalPath != null)
+            {
+                int bestLen = bestGlobalPath.Count;
+                float fitness = bestGlobalFitness;
+
+                float elapsedMs = (Time.realtimeSinceStartup - t0) * 1000f;
+                bool timePassed = (elapsedMs - lastLogTimeMs) >= 5f;
+                bool betterThanLastLogged = fitness > lastLoggedBestFitness;
+
+                if (improvedThisGen || timePassed)
+                {
+                    ConvergenceLogger.Log("Firefly", g, elapsedMs, manhattan, fitness, bestLen);
+                    lastLogTimeMs = elapsedMs;
+                    lastLoggedBestFitness = fitness;
+                }
+            }
 
             ////---Czekaj na naciśnięcie klawisza przed przejściem do kolejnej generacji ---
             //Debug.Log($"[Firefly] Press {nextIterationKey} to continue to next generation {g + 1}/{generations}...");
