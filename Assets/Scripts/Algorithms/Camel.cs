@@ -39,8 +39,8 @@ public partial class PathManager : MonoBehaviour
             AlgorithmLogger.LogToCSV("Camel", elapsed, path.Count, rotations, true, startStep, manhattan);
 
             //Debug.LogWarning($"Assigning point path to robot {robot.Id}, path size: {path.Count}");
-            //gm.robotManager.AssignPlanToRobot(robot, path);
-            //robot.destinations.Dequeue();
+            gm.robotManager.AssignPlanToRobot(robot, path);
+            robot.destinations.Dequeue();
         }));
     }
     IEnumerator Camel_Coroutine(Tile start, Tile goal, Heading startHead, int startStep, RobotController robot, System.Action<List<Node>> onDone)

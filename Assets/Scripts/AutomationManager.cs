@@ -9,7 +9,7 @@ public class AutomationManager : MonoBehaviour
     public void Init(GameManager gm) => this.gm = gm;
 
     [Header("Keybinds")]
-    public Key modeSwitch = Key.M;
+    //public Key modeSwitch = Key.M;
     public Key randomPath = Key.F;
     public Key standardPath = Key.G;
     public Key standardCyclePath = Key.J;

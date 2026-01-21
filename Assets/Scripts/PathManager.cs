@@ -16,7 +16,7 @@ public partial class PathManager : MonoBehaviour
 
     [Header("Controls")]
     public Key nextIterationKey = Key.Space;
-    public Key switchToThirdAlgo = Key.P;
+    public Key switchToFirefly = Key.P;
     public Key switchToACO = Key.O;
     public Key switchToCamel = Key.I;
     public Key switchToAll = Key.U;
@@ -29,7 +29,7 @@ public partial class PathManager : MonoBehaviour
         if (kb == null) return;
         if (kb[switchToACO].wasPressedThisFrame) algorithmMode = AlgorithmMode.ACO;
         else if (kb[switchToCamel].wasPressedThisFrame) algorithmMode = AlgorithmMode.Camel;
-        else if (kb[switchToThirdAlgo].wasPressedThisFrame) algorithmMode = AlgorithmMode.Firefly;
+        else if (kb[switchToFirefly].wasPressedThisFrame) algorithmMode = AlgorithmMode.Firefly;
         else if (kb[switchToAll].wasPressedThisFrame) algorithmMode = AlgorithmMode.All;
     }
 
